@@ -1,0 +1,69 @@
+.transaction-filters {
+  transition: all 0.3s ease;
+}
+
+.amount-income {
+  color: #28a745;
+  font-weight: 500;
+}
+
+.amount-expense {
+  color: #dc3545;
+  font-weight: 500;
+}
+
+.amount-transfer {
+  color: #17a2b8;
+  font-weight: 500;
+}
+
+.transaction-row {
+  transition: all 0.2s ease;
+}
+
+.transaction-row:hover {
+  background-color: #f8f9fa;
+}
+
+.action-buttons {
+  opacity: 0.5;
+  transition: opacity 0.2s ease;
+}
+
+.transaction-row:hover .action-buttons {
+  opacity: 1;
+}
+
+.badge {
+  font-weight: 500;
+  padding: 0.5em 0.8em;
+}
+
+.filter-card {
+  border: 1px solid rgba(0,0,0,.125);
+  box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,.075);
+}
+
+.filter-card .card-header {
+  border-bottom: none;
+}
+
+.filter-card .btn-link:hover {
+  background-color: rgba(0,0,0,.03);
+}
+
+.filter-card .collapse {
+  transition: all 0.2s ease-in-out;
+}
+
+.filter-card .form-label {
+  color: #6c757d;
+  margin-bottom: 0.25rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .filter-card .row {
+    row-gap: 0.5rem !important;
+  }
+}
