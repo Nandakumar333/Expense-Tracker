@@ -1,99 +1,80 @@
-import React, { useMemo } from 'react';
-import { WidgetProps } from '../../../common/types';
+import React from 'react';
+import { ProgressBar } from 'react-bootstrap';
+import { useUnifiedSettings } from '../../../hooks/useUnifiedSettings';
+import BaseWidget from '../BaseWidget';
 
-interface BudgetSpendingData {
-  category: string;
-  budgeted: number;
-  spent: number;
-  color: string;
-}
-
-interface BudgetSpendingProps extends WidgetProps {
-  data: BudgetSpendingData[];
-  currency: string;
+interface BudgetSpendingProps {
+  data: {
+    categoryId: number;
+    categoryName: string;
+    spent: number;
+    budgeted: number;
+    color: string;
+  }[];
+  loading?: boolean;
+  title: string;
+  height?: number;
+  showLegend?: boolean;
 }
 
 const BudgetSpending: React.FC<BudgetSpendingProps> = ({
   data,
-  currency,
-  loading
+  loading = false,
+  title,
+  height = 300,
+  showLegend = true
 }) => {
-  const { sortedData, totalSpent, totalBudget } = useMemo(() => {
-    const sorted = [...data].sort((a, b) => (b.spent / b.budgeted) - (a.spent / a.budgeted));
-    const spent = data.reduce((sum, item) => sum + item.spent, 0);
-    const budget = data.reduce((sum, item) => sum + item.budgeted, 0);
-    return { sortedData: sorted, totalSpent: spent, totalBudget: budget };
-  }, [data]);
+  const { settings, formatCurrency } = useUnifiedSettings();
 
-  const utilizationPercentage = (totalSpent / totalBudget) * 100;
+  const getVariant = (percentage: number) => {
+    if (percentage >= 100) return 'danger';
+    if (percentage >= 80) return 'warning';
+    return 'success';
+  };
 
   return (
-    <div className="card h-100">
-      <div className="card-body">
-        <div className="d-flex justify-content-between align-items-center mb-3">
-          <h6 className="card-title text-muted mb-0">Budget Overview</h6>
-          <span className={`badge ${utilizationPercentage > 100 ? 'bg-danger' : 'bg-success'}`}>
-            {utilizationPercentage.toFixed(1)}% Used
-          </span>
-        </div>
-        {loading ? (
-          <div className="placeholder-glow">
-            <span className="placeholder col-12" style={{ height: '200px' }}></span>
-          </div>
-        ) : (
-          <>
-            <div className="overall-progress mb-4">
+    <BaseWidget title={title} loading={loading}>
+      <div className={`budget-spending theme-${settings?.theme ?? 'light'}`} style={{ height }}>
+        {data.map((item) => {
+          const percentage = (item.spent / item.budgeted) * 100;
+          return (
+            <div key={item.categoryId} className="budget-item mb-3">
               <div className="d-flex justify-content-between align-items-center mb-1">
-                <span>Total Budget Utilization</span>
-                <span>
-                  {currency}{totalSpent.toFixed(2)} / {currency}{totalBudget.toFixed(2)}
-                </span>
+                <div className="d-flex align-items-center">
+                  <div
+                    className="color-dot me-2"
+                    style={{
+                      width: '10px',
+                      height: '10px',
+                      borderRadius: '50%',
+                      backgroundColor: item.color
+                    }}
+                  />
+                  <span>{item.categoryName}</span>
+                </div>
+                <div className="text-end">
+                  <small>
+                    {formatCurrency(item.spent)} / {formatCurrency(item.budgeted)}
+                  </small>
+                </div>
               </div>
-              <div className="progress" style={{ height: '10px' }}>
-                <div
-                  className={`progress-bar ${utilizationPercentage > 100 ? 'bg-danger' : 'bg-success'}`}
-                  role="progressbar"
-                  style={{ width: `${Math.min(utilizationPercentage, 100)}%` }}
-                  aria-valuenow={utilizationPercentage}
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                ></div>
-              </div>
+              <ProgressBar>
+                <ProgressBar
+                  now={Math.min(percentage, 100)}
+                  variant={getVariant(percentage)}
+                  label={`${percentage.toFixed(1)}%`}
+                />
+              </ProgressBar>
             </div>
-            <div className="budget-list">
-              {sortedData.map((item, index) => {
-                const percentage = (item.spent / item.budgeted) * 100;
-                return (
-                  <div key={index} className="mb-3">
-                    <div className="d-flex justify-content-between align-items-center mb-1">
-                      <span className="text-muted">{item.category}</span>
-                      <span className="text-end">
-                        <small className="text-muted">
-                          {currency}{item.spent.toFixed(2)} / {currency}{item.budgeted.toFixed(2)}
-                        </small>
-                      </span>
-                    </div>
-                    <div className="progress" style={{ height: '8px' }}>
-                      <div
-                        className={`progress-bar ${percentage > 100 ? 'bg-danger' : 'bg-success'}`}
-                        role="progressbar"
-                        style={{ 
-                          width: `${Math.min(percentage, 100)}%`,
-                          backgroundColor: item.color 
-                        }}
-                        aria-valuenow={percentage}
-                        aria-valuemin={0}
-                        aria-valuemax={100}
-                      ></div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </>
+          );
+        })}
+        {data.length === 0 && (
+          <div className="text-center text-muted py-4">
+            No budget data available
+          </div>
         )}
       </div>
-    </div>
+    </BaseWidget>
   );
 };
 

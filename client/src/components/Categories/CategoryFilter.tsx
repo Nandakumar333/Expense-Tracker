@@ -1,11 +1,9 @@
 import React from 'react';
 import { ButtonGroup, Button } from 'react-bootstrap';
 
-type FilterType = 'all' | 'income' | 'expense';
-
 interface CategoryFilterProps {
-  filter: FilterType;
-  onFilterChange: (filter: FilterType) => void;
+  filter: 'income' | 'expense' | 'all';
+  onFilterChange: (value: 'income' | 'expense' | 'all') => void;
 }
 
 const CategoryFilter: React.FC<CategoryFilterProps> = ({ filter, onFilterChange }) => {

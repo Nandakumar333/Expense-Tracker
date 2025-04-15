@@ -1,0 +1,48 @@
+.settings-page {
+  padding: 2rem;
+}
+
+.settings-page h1 {
+  margin-bottom: 2rem;
+  color: var(--bs-primary);
+}
+
+.settings-page .card {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border: none;
+}
+
+.settings-page .card-header {
+  background-color: white;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  padding: 1rem;
+}
+
+.settings-page .card-header h4 {
+  margin: 0;
+  color: var(--bs-gray-700);
+}
+
+.settings-page .card-body {
+  padding: 1.5rem;
+}
+
+.settings-page .form-label {
+  font-weight: 500;
+  color: var(--bs-gray-700);
+}
+
+.settings-page .form-text {
+  font-size: 0.85rem;
+}
+
+.settings-page .form-control:focus,
+.settings-page .form-select:focus {
+  border-color: var(--bs-primary);
+  box-shadow: 0 0 0 0.2rem rgba(var(--bs-primary-rgb), 0.25);
+}
+
+.settings-page .form-check-input:checked {
+  background-color: var(--bs-primary);
+  border-color: var(--bs-primary);
+}

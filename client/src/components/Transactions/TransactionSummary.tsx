@@ -1,93 +1,88 @@
 import React from 'react';
-import { Row, Col, Card, OverlayTrigger, Tooltip } from 'react-bootstrap';
+import { Card, Row, Col } from 'react-bootstrap';
+import { useUnifiedSettings } from '../../hooks/useUnifiedSettings';
+import PrivacyFilter from '../common/PrivacyFilter';
 
-interface SummaryProps {
+interface TransactionSummaryProps {
   totalIncome: number;
   totalExpense: number;
   balance: number;
   currency: string;
 }
 
-const TransactionSummary: React.FC<SummaryProps> = ({
+const TransactionSummary: React.FC<TransactionSummaryProps> = ({
   totalIncome,
   totalExpense,
-  balance,
-  currency
+  balance
 }) => {
-  const formatAmount = (amount: number) => {
-    return `${currency}${Math.abs(amount).toLocaleString('en-US', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    })}`;
-  };
-
-  const calculatePercentage = () => {
-    if (totalIncome === 0) return 0;
-    return ((totalExpense / totalIncome) * 100).toFixed(1);
-  };
-
-  const renderSummaryCard = (
-    title: string,
-    amount: number,
-    icon: string,
-    variant: string,
-    tooltip: string
-  ) => (
-    <OverlayTrigger
-      placement="top"
-      overlay={<Tooltip>{tooltip}</Tooltip>}
-    >
-      <Card className="summary-card border-0 shadow-sm h-100">
-        <Card.Body>
-          <div className="d-flex justify-content-between align-items-center">
-            <div>
-              <h6 className="text-muted mb-1">{title}</h6>
-              <h4 className={`mb-0 text-${variant}`}>{formatAmount(amount)}</h4>
-              {title === 'Total Expenses' && (
-                <small className="text-muted">
-                  {calculatePercentage()}% of income
-                </small>
-              )}
-            </div>
-            <div className={`rounded-circle bg-${variant} bg-opacity-10 p-3`}>
-              <i className={`bi ${icon} text-${variant} fs-4`}></i>
-            </div>
-          </div>
-        </Card.Body>
-      </Card>
-    </OverlayTrigger>
-  );
+  const { settings, formatCurrency } = useUnifiedSettings();
 
   return (
-    <Row className="mb-4 g-3">
+    <Row className="mb-4">
       <Col md={4}>
-        {renderSummaryCard(
-          'Total Income',
-          totalIncome,
-          'bi-arrow-up-circle',
-          'success',
-          'Total money received'
-        )}
+        <Card className={`border-0 shadow-sm theme-${settings?.theme ?? 'light'}`}>
+          <Card.Body>
+            <div className="d-flex align-items-center">
+              <div className="flex-shrink-0 me-3">
+                <div className="stats-icon bg-success-subtle text-success">
+                  <i className="bi bi-graph-up-arrow"></i>
+                </div>
+              </div>
+              <div>
+                <h6 className="mb-1">Total Income</h6>
+                <h4 className="mb-0 text-success">
+                  <PrivacyFilter type="amount">
+                    {formatCurrency(totalIncome)}
+                  </PrivacyFilter>
+                </h4>
+              </div>
+            </div>
+          </Card.Body>
+        </Card>
       </Col>
-
+      
       <Col md={4}>
-        {renderSummaryCard(
-          'Total Expenses',
-          totalExpense,
-          'bi-arrow-down-circle',
-          'danger',
-          'Total money spent'
-        )}
+        <Card className={`border-0 shadow-sm theme-${settings?.theme ?? 'light'}`}>
+          <Card.Body>
+            <div className="d-flex align-items-center">
+              <div className="flex-shrink-0 me-3">
+                <div className="stats-icon bg-danger-subtle text-danger">
+                  <i className="bi bi-graph-down-arrow"></i>
+                </div>
+              </div>
+              <div>
+                <h6 className="mb-1">Total Expenses</h6>
+                <h4 className="mb-0 text-danger">
+                  <PrivacyFilter type="amount">
+                    {formatCurrency(totalExpense)}
+                  </PrivacyFilter>
+                </h4>
+              </div>
+            </div>
+          </Card.Body>
+        </Card>
       </Col>
-
+      
       <Col md={4}>
-        {renderSummaryCard(
-          'Net Balance',
-          balance,
-          'bi-wallet2',
-          balance >= 0 ? 'primary' : 'danger',
-          'Current balance'
-        )}
+        <Card className={`border-0 shadow-sm theme-${settings?.theme ?? 'light'}`}>
+          <Card.Body>
+            <div className="d-flex align-items-center">
+              <div className="flex-shrink-0 me-3">
+                <div className={`stats-icon ${balance >= 0 ? 'bg-primary-subtle text-primary' : 'bg-warning-subtle text-warning'}`}>
+                  <i className="bi bi-wallet2"></i>
+                </div>
+              </div>
+              <div>
+                <h6 className="mb-1">Net Balance</h6>
+                <h4 className={`mb-0 ${balance >= 0 ? 'text-primary' : 'text-warning'}`}>
+                  <PrivacyFilter type="amount">
+                    {formatCurrency(balance)}
+                  </PrivacyFilter>
+                </h4>
+              </div>
+            </div>
+          </Card.Body>
+        </Card>
       </Col>
     </Row>
   );

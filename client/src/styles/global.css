@@ -1,13 +1,212 @@
+/* Theme Variables */
 :root {
-  --primary-color: #007bff;
-  --secondary-color: #6c757d;
-  --success-color: #28a745;
-  --danger-color: #dc3545;
-  --background-primary: #ffffff;
-  --background-secondary: #f8f9fa;
-  --text-primary: #212529;
-  --text-secondary: #6c757d;
-  --border-color: #dee2e6;
+  /* Colors */
+  --color-primary: #007bff;
+  --color-secondary: #6c757d;
+  --color-success: #28a745;
+  --color-danger: #dc3545;
+  --color-warning: #ffc107;
+  --color-info: #17a2b8;
+
+  /* Typography */
+  --font-family-base: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-size-base: 1rem;
+  --font-size-lg: 1.25rem;
+  --font-size-sm: 0.875rem;
+  --font-weight-normal: 400;
+  --font-weight-bold: 700;
+  --line-height-base: 1.5;
+
+  /* Spacing */
+  --spacing-1: 0.25rem;
+  --spacing-2: 0.5rem;
+  --spacing-3: 1rem;
+  --spacing-4: 1.5rem;
+  --spacing-5: 3rem;
+
+  /* Border */
+  --border-radius: 0.25rem;
+  --border-radius-lg: 0.5rem;
+  --border-radius-sm: 0.2rem;
+
+  /* Transitions */
+  --transition-base: all 0.2s ease-in-out;
+  --transition-slow: all 0.3s ease-in-out;
+
+  /* Light theme variables */
+  --light-bg-primary: #ffffff;
+  --light-bg-secondary: #f8f9fa;
+  --light-text-primary: #212529;
+  --light-text-secondary: #6c757d;
+  --light-text-muted: #6c757d;
+  --light-border-color: #dee2e6;
+  --light-border-hover: #ced4da;
+  --light-input-bg: #ffffff;
+  --light-input-border: #ced4da;
+  --light-card-bg: #ffffff;
+  --light-sidebar-bg: #ffffff;
+  --light-modal-bg: #ffffff;
+  --light-hover-bg: #f8f9fa;
+  --light-chart-grid: #e9ecef;
+  --light-tooltip-bg: rgba(0, 0, 0, 0.8);
+  --light-tooltip-text: #ffffff;
+  
+  /* Dark theme variables */
+  --dark-bg-primary: #212529;
+  --dark-bg-secondary: #343a40;
+  --dark-text-primary: #f8f9fa;
+  --dark-text-secondary: #adb5bd;
+  --dark-text-muted: #6c757d;
+  --dark-border-color: #495057;
+  --dark-border-hover: #6c757d;
+  --dark-input-bg: #343a40;
+  --dark-input-border: #495057;
+  --dark-card-bg: #343a40;
+  --dark-sidebar-bg: #343a40;
+  --dark-modal-bg: #343a40;
+  --dark-hover-bg: #495057;
+  --dark-chart-grid: #495057;
+  --dark-tooltip-bg: rgba(255, 255, 255, 0.8);
+  --dark-tooltip-text: #212529;
+}
+
+/* Light Theme */
+.theme-light {
+  --bg-primary: var(--light-bg-primary);
+  --bg-secondary: var(--light-bg-secondary);
+  --bg-tertiary: #e9ecef;
+  
+  --text-primary: var(--light-text-primary);
+  --text-secondary: var(--light-text-secondary);
+  --text-muted: var(--light-text-muted);
+  
+  --border-color: var(--light-border-color);
+  --border-color-hover: var(--light-border-hover);
+  
+  --shadow-sm: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+  --shadow-md: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+  --shadow-lg: 0 1rem 3rem rgba(0, 0, 0, 0.175);
+
+  --input-bg: var(--light-input-bg);
+  --input-border: var(--light-input-border);
+  --card-bg: var(--light-card-bg);
+  --sidebar-bg: var(--light-sidebar-bg);
+  --modal-bg: var(--light-modal-bg);
+  --hover-bg: var(--light-hover-bg);
+  --chart-grid: var(--light-chart-grid);
+  --tooltip-bg: var(--light-tooltip-bg);
+  --tooltip-text: var(--light-tooltip-text);
+
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+/* Dark Theme */
+.theme-dark {
+  --bg-primary: var(--dark-bg-primary);
+  --bg-secondary: var(--dark-bg-secondary);
+  --bg-tertiary: #2f353c;
+  
+  --text-primary: var(--dark-text-primary);
+  --text-secondary: var(--dark-text-secondary);
+  --text-muted: var(--dark-text-muted);
+  
+  --border-color: var(--dark-border-color);
+  --border-color-hover: var(--dark-border-hover);
+  
+  --shadow-sm: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 0.5rem 1rem rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 1rem 3rem rgba(0, 0, 0, 0.5);
+
+  --input-bg: var(--dark-input-bg);
+  --input-border: var(--dark-input-border);
+  --card-bg: var(--dark-card-bg);
+  --sidebar-bg: var(--dark-sidebar-bg);
+  --modal-bg: var(--dark-modal-bg);
+  --hover-bg: var(--dark-hover-bg);
+  --chart-grid: var(--dark-chart-grid);
+  --tooltip-bg: var(--dark-tooltip-bg);
+  --tooltip-text: var(--dark-tooltip-text);
+
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+/* Privacy Mode */
+.privacy-mode {
+  filter: blur(4px);
+  transition: filter 0.2s ease-in-out;
+}
+
+.privacy-mode:hover,
+.privacy-mode:focus {
+  filter: blur(0);
+}
+
+/* Utility Classes */
+.bg-layer-1 { background-color: var(--bg-primary); }
+.bg-layer-2 { background-color: var(--bg-secondary); }
+.bg-layer-3 { background-color: var(--bg-tertiary); }
+
+.text-primary-color { color: var(--text-primary); }
+.text-secondary-color { color: var(--text-secondary); }
+.text-muted-color { color: var(--text-muted); }
+
+.border-base { border: 1px solid var(--border-color); }
+.border-hover { border: 1px solid var(--border-color-hover); }
+
+.shadow-hover {
+  transition: var(--transition-base);
+}
+
+.shadow-hover:hover {
+  box-shadow: var(--shadow-md);
+}
+
+/* Animation Classes */
+.fade-in {
+  animation: fadeIn 0.2s ease-in;
+}
+
+.slide-in {
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideIn {
+  from { transform: translateY(-10px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+/* Responsive Typography */
+@media (max-width: 768px) {
+  :root {
+    --font-size-base: 0.875rem;
+    --font-size-lg: 1.125rem;
+    --font-size-sm: 0.75rem;
+  }
+}
+
+/* Print Styles */
+@media print {
+  .theme-light,
+  .theme-dark {
+    --bg-primary: #ffffff;
+    --bg-secondary: #ffffff;
+    --bg-tertiary: #ffffff;
+    --text-primary: #000000;
+    --text-secondary: #333333;
+    --text-muted: #666666;
+    --border-color: #cccccc;
+  }
+
+  .privacy-mode {
+    filter: none !important;
+  }
 }
 
 body {
@@ -44,6 +243,28 @@ body {
   margin: 1rem;
 }
 
+/* Category Modal Styles */
+.category-modal {
+  z-index: 1060 !important;
+}
+
+.category-modal .modal-content {
+  border: none;
+  border-radius: 0.5rem;
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+.category-modal .modal-header {
+  background-color: #fff;
+  border-top-left-radius: 0.5rem;
+  border-top-right-radius: 0.5rem;
+}
+
+.modal-backdrop.show {
+  opacity: 0.5;
+  z-index: 1050 !important;
+}
+
 /* Form control styles */
 .form-control,
 .form-select {
@@ -63,4 +284,86 @@ body {
 select option {
   background-color: var(--background-primary);
   color: var(--text-primary);
+}
+
+/* Theme-specific styles */
+.theme-light .card,
+.theme-dark .card {
+  background-color: var(--card-bg);
+  border-color: var(--border-color);
+}
+
+.theme-light .modal-content,
+.theme-dark .modal-content {
+  background-color: var(--modal-bg);
+  border-color: var(--border-color);
+}
+
+.theme-light .form-control,
+.theme-dark .form-control {
+  background-color: var(--input-bg);
+  border-color: var(--input-border);
+  color: var(--text-primary);
+}
+
+.theme-light .table,
+.theme-dark .table {
+  color: var(--text-primary);
+}
+
+.theme-light .table-hover tbody tr:hover,
+.theme-dark .table-hover tbody tr:hover {
+  background-color: var(--hover-bg);
+}
+
+.theme-light .nav-link,
+.theme-dark .nav-link {
+  color: var(--text-secondary);
+}
+
+.theme-light .nav-link.active,
+.theme-dark .nav-link.active {
+  color: var(--text-primary);
+}
+
+/* Custom tooltip styles */
+.custom-tooltip {
+  padding: 0.5rem;
+  border-radius: 4px;
+  font-size: 0.875rem;
+}
+
+.theme-light .custom-tooltip {
+  background-color: var(--light-tooltip-bg);
+  color: var(--light-tooltip-text);
+}
+
+.theme-dark .custom-tooltip {
+  background-color: var(--dark-tooltip-bg);
+  color: var(--dark-tooltip-text);
+}
+
+/* Chart theme styles */
+.theme-light .recharts-cartesian-grid-horizontal line,
+.theme-light .recharts-cartesian-grid-vertical line {
+  stroke: var(--light-chart-grid);
+}
+
+.theme-dark .recharts-cartesian-grid-horizontal line,
+.theme-dark .recharts-cartesian-grid-vertical line {
+  stroke: var(--dark-chart-grid);
+}
+
+.theme-light .axis-text,
+.theme-dark .axis-text {
+  fill: var(--text-secondary);
+}
+
+/* Privacy filter styles */
+.privacy-filter.theme-light {
+  background-color: var(--light-bg-secondary);
+}
+
+.privacy-filter.theme-dark {
+  background-color: var(--dark-bg-secondary);
 }

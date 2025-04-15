@@ -1,0 +1,149 @@
+.categories-container {
+  padding: 1rem;
+}
+
+.category-item {
+  margin-bottom: 0.5rem;
+  transition: all 0.2s ease;
+  animation: slideIn 0.3s ease;
+}
+
+.category-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+  margin-bottom: 0.5rem;
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.category-content::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  width: 3px;
+  background: var(--primary);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.category-content:hover::before {
+  opacity: 1;
+}
+
+.category-content:hover {
+  background: var(--hover-bg);
+}
+
+.color-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.category-actions {
+  display: flex;
+  gap: 0.5rem;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.category-actions button {
+  position: relative;
+  overflow: hidden;
+}
+
+.category-actions button::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  transition: width 0.3s ease, height 0.3s ease;
+}
+
+.category-actions button:active::after {
+  width: 200%;
+  height: 200%;
+}
+
+.category-content:hover .category-actions {
+  opacity: 1;
+}
+
+.category-item.dragging {
+  background: var(--bg-surface);
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+.theme-dark .category-content {
+  background: var(--bg-surface-dark);
+  border-color: var(--border-color-dark);
+}
+
+.bi-grip-vertical {
+  cursor: grab;
+}
+
+.bi-grip-vertical:active {
+  cursor: grabbing;
+}
+
+@media (max-width: 768px) {
+  .category-actions {
+    opacity: 1;
+  }
+  
+  .category-content {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.category-item.deleting {
+  animation: fadeOut 0.3s ease forwards;
+}
+
+@keyframes fadeOut {
+  to {
+    opacity: 0;
+    transform: translateX(10px);
+  }
+}
+
+.drag-handle {
+  cursor: grab;
+  padding: 4px;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.drag-handle:hover {
+  background-color: var(--hover-bg);
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}

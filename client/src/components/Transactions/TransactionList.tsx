@@ -1,6 +1,8 @@
 import React from 'react';
-import { Table, Badge, Button, Card } from 'react-bootstrap';
+import { Table, Badge } from 'react-bootstrap';
 import { Transaction, Category, Account } from '../../common/types';
+import { useUnifiedSettings } from '../../hooks/useUnifiedSettings';
+import PrivacyFilter from '../common/PrivacyFilter';
 
 interface TransactionListProps {
   transactions: Transaction[];
@@ -11,92 +13,73 @@ interface TransactionListProps {
   onDelete: (id: number) => void;
 }
 
-const TransactionList: React.FC<TransactionListProps> = ({
-  transactions,
-  categories,
-  accounts,
-  currency,
-  onEdit,
-  onDelete
+const TransactionList: React.FC<TransactionListProps> = ({ 
+  transactions, 
+  categories, 
+  accounts, 
+  onEdit, 
+  onDelete 
 }) => {
-  const formatAmount = (amount: number) => {
-    return `${currency}${Math.abs(amount).toLocaleString('en-US', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    })}`;
-  };
-
-  const getCategoryName = (categoryId: number) => {
-    return categories.find(c => c.id === categoryId)?.name || 'Unknown';
-  };
-
-  const getAccountName = (accountId: number) => {
-    return accounts.find(a => a.id === accountId)?.name || 'Unknown';
-  };
+  const { settings, formatCurrency, formatDate } = useUnifiedSettings();
 
   return (
-    <>
-      <Card.Header className="bg-transparent border-bottom">
-        <h5 className="mb-0">Recent Transactions</h5>
-      </Card.Header>
-      <Table responsive hover className="mb-0">
+    <div className={`transaction-list theme-${settings?.theme ?? 'light'}`}>
+      <Table hover>
         <thead>
           <tr>
             <th>Date</th>
             <th>Description</th>
             <th>Category</th>
             <th>Account</th>
-            <th>Amount</th>
+            <th className="text-end">Amount</th>
             <th>Actions</th>
           </tr>
         </thead>
         <tbody>
-          {transactions.length === 0 ? (
-            <tr>
-              <td colSpan={6} className="text-center py-4">
-                No transactions found
+          {transactions.map(transaction => (
+            <tr key={transaction.id}>
+              <td>{formatDate(transaction.date, settings?.dateFormat ?? 'MM/dd/yyyy')}</td>
+              <td>
+                <PrivacyFilter type="note" showToggle>
+                  {transaction.description}
+                </PrivacyFilter>
               </td>
-            </tr>
-          ) : (
-            transactions.map((transaction) => (
-              <tr key={transaction.id}>
-                <td>{new Date(transaction.date).toLocaleDateString()}</td>
-                <td>{transaction.description}</td>
-                <td>
-                  <Badge bg="secondary" className="rounded-pill">
-                    {getCategoryName(transaction.categoryId)}
-                  </Badge>
-                </td>
-                <td>{getAccountName(transaction.accountId)}</td>
-                <td>
-                  <span className={transaction.type === 'expense' ? 'text-danger' : 'text-success'}>
-                    {formatAmount(transaction.amount)}
-                  </span>
-                </td>
-                <td>
-                  <Button
-                    variant="light"
-                    size="sm"
-                    className="me-2"
+              <td>
+                <Badge bg={transaction.type === 'expense' ? 'danger' : 'success'}>
+                  {transaction.categoryName}
+                </Badge>
+              </td>
+              <td>
+                <PrivacyFilter type="account">
+                  {transaction.accountName}
+                </PrivacyFilter>
+              </td>
+              <td className={`text-end ${transaction.type === 'expense' ? 'text-danger' : 'text-success'}`}>
+                <PrivacyFilter type="amount">
+                  {formatCurrency(Math.abs(transaction.amount))}
+                </PrivacyFilter>
+              </td>
+              <td>
+                <div className="d-flex gap-2">
+                  <button
+                    className="btn btn-sm btn-outline-primary"
                     onClick={() => onEdit(transaction)}
                   >
-                    <i className="bi bi-pencil"></i>
-                  </Button>
-                  <Button
-                    variant="light"
-                    size="sm"
-                    className="text-danger"
+                    <i className="bi bi-pencil" />
+                  </button>
+                  <button
+                    className="btn btn-sm btn-outline-danger"
                     onClick={() => onDelete(transaction.id)}
                   >
-                    <i className="bi bi-trash"></i>
-                  </Button>
-                </td>
-              </tr>
-            ))
-          )}
+                    <i className="bi bi-trash" />
+                  </button>
+                </div>
+              </td>
+            </tr>
+          ))}
         </tbody>
       </Table>
-    </>
+    </div>
   );
 };
 

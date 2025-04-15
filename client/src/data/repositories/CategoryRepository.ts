@@ -4,6 +4,7 @@ import { Category } from '../../common/types';
 export class CategoryRepository extends BaseRepository<Category> {
   constructor() {
     super('categories');
+    this.initializeDefaultCategories();
   }
 
   getCategories(): Category[] {
@@ -12,7 +13,11 @@ export class CategoryRepository extends BaseRepository<Category> {
 
   addCategory(category: Category): void {
     const categories = this.getAll();
-    categories.push(category);
+    const newCategory = {
+      ...category,
+      id: categories.length > 0 ? Math.max(...categories.map(c => c.id)) + 1 : 1
+    };
+    categories.push(newCategory);
     this.save(categories);
   }
 
@@ -30,7 +35,7 @@ export class CategoryRepository extends BaseRepository<Category> {
     this.save(categories.filter(c => c.id !== id));
   }
 
-  initializeDefaultCategories(): void {
+  private initializeDefaultCategories(): void {
     const defaultCategories: Category[] = [
       { id: 1, name: 'Food', type: 'expense', color: '#e74c3c' },
       { id: 2, name: 'Salary', type: 'income', color: '#2ecc71' },

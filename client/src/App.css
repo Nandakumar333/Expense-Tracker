@@ -373,3 +373,133 @@ html {
   opacity: 0;
   transition: opacity 200ms ease-in;
 }
+
+/* Base theme variables */
+:root {
+  --primary-color: #007bff;
+  --secondary-color: #6c757d;
+  --success-color: #28a745;
+  --danger-color: #dc3545;
+  --warning-color: #ffc107;
+  --info-color: #17a2b8;
+}
+
+/* Light theme (default) */
+.theme-light {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f8f9fa;
+  --text-primary: #212529;
+  --text-secondary: #6c757d;
+  --border-color: #dee2e6;
+  --card-bg: #ffffff;
+  --sidebar-bg: #f8f9fa;
+  --hover-bg: #e9ecef;
+}
+
+/* Dark theme */
+.theme-dark {
+  --bg-primary: #1a1d21;
+  --bg-secondary: #262a2f;
+  --text-primary: #e9ecef;
+  --text-secondary: #adb5bd;
+  --border-color: #343a40;
+  --card-bg: #262a2f;
+  --sidebar-bg: #212529;
+  --hover-bg: #343a40;
+}
+
+/* Apply theme to main elements */
+body {
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.app-layout {
+  min-height: 100vh;
+  display: flex;
+}
+
+.card {
+  background-color: var(--card-bg);
+  border-color: var(--border-color);
+}
+
+.sidebar {
+  background-color: var(--sidebar-bg);
+  border-right: 1px solid var(--border-color);
+}
+
+.sidebar-link {
+  color: var(--text-primary);
+}
+
+.sidebar-link:hover {
+  background-color: var(--hover-bg);
+}
+
+.sidebar-link.active {
+  background-color: var(--primary-color);
+  color: #ffffff;
+}
+
+/* Theme-specific table styles */
+.table {
+  color: var(--text-primary);
+}
+
+.table thead th {
+  border-bottom-color: var(--border-color);
+}
+
+.table td {
+  border-top-color: var(--border-color);
+}
+
+/* Theme-specific form styles */
+.form-control {
+  background-color: var(--bg-primary);
+  border-color: var(--border-color);
+  color: var(--text-primary);
+}
+
+.form-control:focus {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+/* Widget styles */
+.widget {
+  background-color: var(--card-bg);
+  border-color: var(--border-color);
+}
+
+.widget-title {
+  color: var(--text-primary);
+}
+
+/* Modal styles */
+.modal-content {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.modal-header {
+  border-bottom-color: var(--border-color);
+}
+
+.modal-footer {
+  border-top-color: var(--border-color);
+}
+
+/* Navigation styles */
+.navbar {
+  background-color: var(--bg-primary);
+  border-bottom-color: var(--border-color);
+}
+
+/* Responsive adjustments */
+@media (max-width: 991.98px) {
+  .app-main {
+    margin-top: 56px;
+  }
+}

@@ -1,66 +1,67 @@
 import React from 'react';
-import { Card, Row, Col, Form } from 'react-bootstrap';
-import { Category } from '../../common/types';
+import { Form, Row, Col, InputGroup } from 'react-bootstrap';
+import { Category, Account } from '../../common/types';
+import DateRangePicker from '../common/DateRangePicker';
+import { useUnifiedSettings } from '../../hooks/useUnifiedSettings';
 
-interface FilterProps {
+interface TransactionFiltersProps {
   filters: {
     startDate: string;
     endDate: string;
     type: string;
     categoryId: string;
+    accountId: string;
     search: string;
   };
   categories: Category[];
+  accounts: Account[];
   onFilterChange: (filters: any) => void;
 }
 
-const TransactionFilters: React.FC<FilterProps> = ({ filters, categories, onFilterChange }) => {
-  const handleFilterChange = (field: string, value: string) => {
-    onFilterChange({
-      ...filters,
-      [field]: value
-    });
+const TransactionFilters: React.FC<TransactionFiltersProps> = ({
+  filters,
+  categories,
+  accounts,
+  onFilterChange
+}) => {
+  const { settings } = useUnifiedSettings();
+
+  const handleFilterChange = (key: string, value: string) => {
+    onFilterChange({ ...filters, [key]: value });
   };
 
   return (
-    <Card className="mb-4 border-0 shadow-sm">
-      <Card.Body>
+    <div className={`transaction-filters mb-4 theme-${settings?.theme ?? 'light'}`}>
+      <Form>
         <Row className="g-3">
-          <Col md={3}>
+          <Col md={6} lg={4}>
             <Form.Group>
-              <Form.Label>Start Date</Form.Label>
-              <Form.Control
-                type="date"
-                value={filters.startDate}
-                onChange={(e) => handleFilterChange('startDate', e.target.value)}
+              <Form.Label>Date Range</Form.Label>
+              <DateRangePicker
+                startDate={filters.startDate}
+                endDate={filters.endDate}
+                onStartDateChange={(date) => handleFilterChange('startDate', date)}
+                onEndDateChange={(date) => handleFilterChange('endDate', date)}
               />
             </Form.Group>
           </Col>
-          <Col md={3}>
-            <Form.Group>
-              <Form.Label>End Date</Form.Label>
-              <Form.Control
-                type="date"
-                value={filters.endDate}
-                onChange={(e) => handleFilterChange('endDate', e.target.value)}
-              />
-            </Form.Group>
-          </Col>
-          <Col md={2}>
+
+          <Col md={6} lg={2}>
             <Form.Group>
               <Form.Label>Type</Form.Label>
               <Form.Select
                 value={filters.type}
                 onChange={(e) => handleFilterChange('type', e.target.value)}
               >
-                <option value="all">All</option>
+                <option value="all">All Types</option>
+                <option value="expense">Expenses</option>
                 <option value="income">Income</option>
-                <option value="expense">Expense</option>
-                <option value="transfer">Transfer</option>
+                <option value="transfer">Transfers</option>
               </Form.Select>
             </Form.Group>
           </Col>
-          <Col md={2}>
+
+          <Col md={6} lg={2}>
             <Form.Group>
               <Form.Label>Category</Form.Label>
               <Form.Select
@@ -76,20 +77,43 @@ const TransactionFilters: React.FC<FilterProps> = ({ filters, categories, onFilt
               </Form.Select>
             </Form.Group>
           </Col>
-          <Col md={2}>
+
+          <Col md={6} lg={2}>
+            <Form.Group>
+              <Form.Label>Account</Form.Label>
+              <Form.Select
+                value={filters.accountId}
+                onChange={(e) => handleFilterChange('accountId', e.target.value)}
+              >
+                <option value="all">All Accounts</option>
+                {accounts.map(account => (
+                  <option key={account.id} value={account.id}>
+                    {account.name}
+                  </option>
+                ))}
+              </Form.Select>
+            </Form.Group>
+          </Col>
+
+          <Col lg={2}>
             <Form.Group>
               <Form.Label>Search</Form.Label>
-              <Form.Control
-                type="text"
-                placeholder="Search..."
-                value={filters.search}
-                onChange={(e) => handleFilterChange('search', e.target.value)}
-              />
+              <InputGroup>
+                <InputGroup.Text>
+                  <i className="bi bi-search" />
+                </InputGroup.Text>
+                <Form.Control
+                  type="text"
+                  placeholder="Search..."
+                  value={filters.search}
+                  onChange={(e) => handleFilterChange('search', e.target.value)}
+                />
+              </InputGroup>
             </Form.Group>
           </Col>
         </Row>
-      </Card.Body>
-    </Card>
+      </Form>
+    </div>
   );
 };
 

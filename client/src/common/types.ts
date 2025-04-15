@@ -1,19 +1,28 @@
 export interface Category {
-  type: any;
-  color: any;
   id: number;
   name: string;
+  type: 'income' | 'expense';
+  color: string;
+  parentId?: number | null;
+  path?: string;
+  level?: number;
+  children?: Category[];
+  description?: string;
+  icon?: string;
+  isActive?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export type CategoryType = 'expense' | 'income' | 'transfer';
 
 export interface TransactionForm {
   type: string;
+  categoryId: string | number;
+  accountId: string | number;
   amount: number;
-  categoryId: number;
-  accountId: number;
-  description: string;
-  date: string;
+  description?: string;
+  date?: string;
 }
 
 export interface TransferForm {
@@ -25,10 +34,21 @@ export interface TransferForm {
 }
 
 export interface CategoryForm {
-    id?: number;
-    name: string;
-    type: CategoryType;
-    color: string;
+  type: 'income' | 'expense';
+  name: string;
+  description?: string;
+  color: string;
+  icon: string;
+  parentId: number | null;
+}
+
+export interface CategoryFormData {
+  name: string;
+  type: 'income' | 'expense';
+  color: string;
+  parentId?: number | null;
+  description?: string;
+  icon?: string;
 }
 
 export interface CategoryListProps {
@@ -115,6 +135,7 @@ export interface TrendData {
 }
 
 export interface DashboardSummary {
+  totalSavings: number;
   yearlyExpense: number;
   totalBalance: number;
   monthlyIncome: number;
@@ -151,6 +172,7 @@ export interface BudgetAlert {
 }
 
 export interface AlertData {
+  spent: any;
   actual: number;
   budget: number;
   category: string;
@@ -203,4 +225,50 @@ export interface WidgetData {
     expenses: number;
     balance: number;
   };
+}
+
+export interface UserSettings {
+  privacySettings: {};
+  browserNotifications: boolean;
+  version: string;
+  lastModified: any;
+  currency: string;
+  language: string;
+  theme: 'light' | 'dark';
+  savingsGoal: number;
+  notificationsEnabled: boolean;
+  emailNotifications: boolean;
+  budgetAlertThreshold: number;
+  dateFormat: string;
+  timeZone: string;
+  weekStartDay: 'sunday' | 'monday';
+  numberFormat: 'comma' | 'dot' | 'space';
+  defaultTransactionType: 'expense' | 'income';
+  dashboardRefreshRate: number;
+  exportFormat: 'csv' | 'excel' | 'pdf' | 'json';
+  backupFrequency: 'daily' | 'weekly' | 'monthly' | 'never';
+  privacyMode: boolean;
+  defaultAccount?: number;
+  categorySortOrder: 'alphabetical' | 'mostUsed' | 'custom';
+  expenseReminderDays: number;
+  // Notification settings
+  autoDismissNotifications: boolean;
+  notificationDismissDelay: number;
+  notificationPosition: 'top-start' | 'top-end' | 'bottom-start' | 'bottom-end';
+  keyboardShortcutsEnabled: boolean;
+}
+
+export interface SettingsUpdateRequest {
+  setting: keyof UserSettings;
+  value: any;
+}
+
+export type Settings = UserSettings;
+
+export interface SettingsContextType {
+  settings: UserSettings | null;
+  updateSettings: (settings: Partial<UserSettings>) => Promise<void>;
+  resetToDefaults: () => Promise<void>;
+  exportSettings: () => void;
+  importSettings: (file: File) => Promise<boolean>;
 }

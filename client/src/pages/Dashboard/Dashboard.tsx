@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import './Dashboard.css';
 import AddAccount from '../Account/AddAccount';
 import TransactionModal from '../../components/Transactions/TransactionModal';
-import { Account, Category, Transaction, TransactionForm, TransferForm, Budget } from '../../common/types';
+import { Account, Category, Transaction, TransactionForm, TransferForm, Budget, CategoryFormData, WidgetData, DashboardSummary } from '../../common/types';
 import TotalExpenses from '../../components/Widgets/SummaryWidgets/TotalExpenses';
 import ExpenseTrend from '../../components/Widgets/SummaryWidgets/ExpenseTrend';
 import SavingsTrend from '../../components/Widgets/SummaryWidgets/SavingsTrend';
@@ -23,26 +23,47 @@ import CategoriesWidget from '../../components/Widgets/Categories/CategoriesWidg
 import { CategoryService } from '../../services/CategoryService';
 import CategoryPage from '../Categories/CategoryPage';
 import CategoryForm from '../../components/Categories/CategoryForm';
+import CategoryModal from '../../components/Categories/CategoryModal';
+import { useSettingsUtils } from '../../hooks/useSettingsUtils';
+import { useAutoRefresh } from '../../hooks/useAutoRefresh';
+import SummaryWidget from '../../components/Widgets/SummaryWidgets/SummaryWidget';
+import BudgetSpendingWidget from '../../components/Widgets/BudgetSpending/BudgetSpendingWidget';
+import AlertsInsightsWidget from '../../components/Widgets/AlertsInsights/AlertsInsightsWidget';
+import LoadingState from '../../components/common/LoadingState';
+import BaseWidget from '../../components/Widgets/BaseWidget';
+import { useUnifiedSettings } from '../../hooks/useUnifiedSettings';
 
 interface DashboardError {
   message: string;
   type: 'error' | 'warning';
 }
 
+interface DashboardFilters extends Omit<TransactionForm, 'amount'> {
+  startDate: string;
+  endDate: string;
+  amount: number;
+  description?: string;
+  date?: string;
+}
+
 const Dashboard: React.FC = () => {
   const { userProfile } = useAuth();
+  const { formatCurrency, settings } = useUnifiedSettings();
 
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [showModal, setShowModal] = useState<'account' | 'transaction' | 'categories' | 'budget' | null>(null);
-  const [filters, setFilters] = useState({
+  const [filters, setFilters] = useState<DashboardFilters>({
     startDate: '',
     endDate: '',
     type: 'all',
     categoryId: 'all',
-    accountId: 'all'
+    accountId: 'all',
+    amount: 0,
+    description: '',
+    date: undefined
   });
   const [showFilters, setShowFilters] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -50,14 +71,44 @@ const Dashboard: React.FC = () => {
   const [error, setError] = useState<DashboardError | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'danger' | 'warning' } | null>(null);
-
+  const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
+  const [dashboardData, setDashboardData] = useState<WidgetData | null>(null);
+  const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const dashboardService = new DashboardService();
+  useSettingsUtils();
+
+  const fetchDashboardData = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const data = await dashboardService.getDashboardData();
+      const calculatedSummary = dashboardService.calculateSummary(
+        data.transactions,
+        data.accounts
+      );
+      const widgetData = dashboardService.calculateWidgetData(
+        data.transactions,
+        data.categories,
+        data.accounts,
+        data.budgets
+      );
+
+      setSummary(calculatedSummary);
+      setDashboardData(widgetData);
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  // Set up auto-refresh
+  useAutoRefresh({ onRefresh: fetchDashboardData });
 
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
       try {
-        const data = dashboardService.getDashboardData();
+        const data = await dashboardService.getDashboardData();
         setAccounts(data.accounts);
         setCategories(data.categories);
         setTransactions(data.transactions);
@@ -104,14 +155,6 @@ const Dashboard: React.FC = () => {
   const summaryData = dashboardService.calculateSummary(transactions, accounts);
   const widgetData = dashboardService.calculateWidgetData(transactions, categories, accounts, budgets);
 
-  const getCurrencySymbol = () => {
-    switch(userProfile?.currency) {
-      case 'EUR': return '€';
-      case 'GBP': return '£';
-      default: return '$';
-    }
-  };
-
   const filteredTransactions = transactions.filter(transaction => {
     const matchesDate = (!filters.startDate || transaction.date >= filters.startDate) &&
                        (!filters.endDate || transaction.date <= filters.endDate);
@@ -157,22 +200,37 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  const handleCategoryAction = async (actionType: 'add' | 'delete', categoryData: Category | number) => {
+  const handleCategoryAction = async (actionType: 'add' | 'edit' | 'delete', categoryData: Category | CategoryFormData | number, parentId?: number | null) => {
     try {
       const categoryService = new CategoryService();
-      if (actionType === 'add') {
-        const newCategory = categoryData as Category;
-        await categoryService.updateCategory(newCategory);
-        setCategories([...categories, newCategory]);
-        showToast('Category added successfully', 'success');
-      } else {
-        const categoryId = categoryData as number;
-        await categoryService.deleteCategory(categoryId);
-        setCategories(categories.filter(cat => cat.id !== categoryId));
+      
+      if (actionType === 'delete' && typeof categoryData === 'number') {
+        await categoryService.deleteCategory(categoryData);
+        setCategories(prev => prev.filter(cat => cat.id !== categoryData));
         showToast('Category deleted successfully', 'success');
+        return;
+      }
+
+      if (typeof categoryData === 'object') {
+        const formData = categoryData as CategoryFormData;
+        if (actionType === 'add') {
+          const newCategory = await categoryService.addCategory({
+            ...formData,
+            parentId: parentId ?? formData.parentId
+          });
+          setCategories(prev => [...prev, newCategory]);
+          showToast('Category added successfully', 'success');
+        } else {
+          const updatedCategory = await categoryService.updateCategory(
+            (categoryData as Category).id,
+            formData
+          );
+          setCategories(prev => prev.map(c => c.id === updatedCategory.id ? updatedCategory : c));
+          showToast('Category updated successfully', 'success');
+        }
+        handleCloseModal();
       }
     } catch (error) {
-      console.error(`Failed to ${actionType} category:`, error);
       showToast(`Failed to ${actionType} category`, 'danger');
     }
   };
@@ -186,10 +244,20 @@ const Dashboard: React.FC = () => {
     handleCloseModal();
   };
 
+  const handleFilterChange = (newFilters: Partial<DashboardFilters>) => {
+    setFilters(prev => ({ ...prev, ...newFilters }));
+  };
+
   if (isLoading) {
     return (
-      <Container className="d-flex justify-content-center align-items-center min-vh-100">
-        <Spinner animation="border" variant="primary" />
+      <Container fluid className="dashboard-wrapper py-4">
+        <Row className="g-4">
+          {[1, 2, 3, 4].map(i => (
+            <Col key={i} xs={12} sm={6} lg={3}>
+              <LoadingState />
+            </Col>
+          ))}
+        </Row>
       </Container>
     );
   }
@@ -197,12 +265,11 @@ const Dashboard: React.FC = () => {
   return (
     <Container fluid className={`dashboard-wrapper py-4 ${isModalOpen ? 'modal-open' : ''}`}>
       {error && (
-        <Alert variant={error.type} dismissible onClose={() => setError(null)}>
+        <Alert variant={error.type} dismissible onClose={() => setError(null)} className="mb-4">
           {error.message}
         </Alert>
       )}
 
-      {/* Header Section */}
       <Row className="mb-4">
         <Col>
           <div className="d-flex justify-content-between align-items-center">
@@ -210,20 +277,30 @@ const Dashboard: React.FC = () => {
               <h4 className="mb-1">Welcome back{userProfile?.name ? `, ${userProfile.name}` : ''}</h4>
               <p className="text-muted mb-0">Here's your financial overview</p>
             </div>
-            <Button 
-              variant="primary"
-              onClick={() => handleOpenModal('transaction')}
-              className="d-flex align-items-center"
-            >
-              <i className="bi bi-plus-lg me-2"></i>
-              Add Transaction
-            </Button>
+            <div className="d-flex gap-2">
+              <Button 
+                variant="outline-primary"
+                onClick={() => handleOpenModal('budget')}
+                className="d-flex align-items-center"
+              >
+                <i className="bi bi-wallet me-2"></i>
+                Manage Budget
+              </Button>
+              <Button 
+                variant="primary"
+                onClick={() => handleOpenModal('transaction')}
+                className="d-flex align-items-center"
+              >
+                <i className="bi bi-plus-lg me-2"></i>
+                Add Transaction
+              </Button>
+            </div>
           </div>
         </Col>
       </Row>
 
       {/* Quick Stats Cards */}
-      <Row className="g-3 mb-4">
+      <Row className="g-4 mb-4">
         <Col xs={12} sm={6} lg={3}>
           <Card className="border-0 shadow-sm h-100">
             <Card.Body>
@@ -237,7 +314,7 @@ const Dashboard: React.FC = () => {
                   <h6 className="card-title mb-0">Total Balance</h6>
                 </div>
               </div>
-              <h3 className="mb-2">{getCurrencySymbol()}{summaryData.totalBalance.toFixed(2)}</h3>
+              <h3 className="mb-2">{formatCurrency(summaryData.totalBalance)}</h3>
               <div className="text-muted small">
                 Across {accounts.length} accounts
               </div>
@@ -257,7 +334,7 @@ const Dashboard: React.FC = () => {
                   <h6 className="card-title mb-0">Monthly Income</h6>
                 </div>
               </div>
-              <h3 className="mb-2">{getCurrencySymbol()}{summaryData.monthlyIncome.toFixed(2)}</h3>
+              <h3 className="mb-2">{formatCurrency(summaryData.monthlyIncome)}</h3>
               <div className="text-muted small">
                 From various sources
               </div>
@@ -277,7 +354,7 @@ const Dashboard: React.FC = () => {
                   <h6 className="card-title mb-0">Monthly Expenses</h6>
                 </div>
               </div>
-              <h3 className="mb-2">{getCurrencySymbol()}{summaryData.monthlyExpense.toFixed(2)}</h3>
+              <h3 className="mb-2">{formatCurrency(summaryData.monthlyExpense)}</h3>
               <div className="text-muted small">
                 Across all categories
               </div>
@@ -297,7 +374,7 @@ const Dashboard: React.FC = () => {
                   <h6 className="card-title mb-0">Monthly Savings</h6>
                 </div>
               </div>
-              <h3 className="mb-2">{getCurrencySymbol()}{summaryData.monthlySavings.toFixed(2)}</h3>
+              <h3 className="mb-2">{formatCurrency(summaryData.monthlySavings)}</h3>
               <div className="text-muted small">
                 Target savings progress
               </div>
@@ -306,256 +383,203 @@ const Dashboard: React.FC = () => {
         </Col>
       </Row>
 
-      {/* Main Content Grid */}
       <Row className="g-4">
         <Col lg={8}>
-          {/* Expense vs Income Chart */}
-          <Card className="border-0 shadow-sm mb-4">
-            <Card.Header className="border-0 bg-transparent">
-              <div className="d-flex justify-content-between align-items-center">
-                <Card.Title className="mb-0">Income vs Expenses</Card.Title>
-                <div className="btn-group">
-                  <Button
-                    variant={viewMode === 'monthly' ? 'secondary' : 'outline-secondary'}
-                    size="sm"
-                    onClick={() => setViewMode('monthly')}
-                  >
-                    Monthly
-                  </Button>
-                  <Button
-                    variant={viewMode === 'yearly' ? 'secondary' : 'outline-secondary'}
-                    size="sm"
-                    onClick={() => setViewMode('yearly')}
-                  >
-                    Yearly
-                  </Button>
-                </div>
-              </div>
-            </Card.Header>
-            <Card.Body>
-              <ExpenseTrend
-                transactions={transactions}
-                currency={getCurrencySymbol()}
-                loading={isLoading}
-                height={300}
-                showLegend={true} data={[]}              />
-              <Row className="mt-4">
-                <Col md={4}>
-                  <div className="text-center p-3 border-end">
-                    <div className="text-muted mb-1">Income</div>
-                    <h4 className="text-success mb-0">
-                      {getCurrencySymbol()}
-                      {summaryData.monthlyIncome.toFixed(2)}
-                    </h4>
-                  </div>
-                </Col>
-                <Col md={4}>
-                  <div className="text-center p-3 border-end">
-                    <div className="text-muted mb-1">Expenses</div>
-                    <h4 className="text-danger mb-0">
-                      {getCurrencySymbol()}
-                      {summaryData.monthlyExpense.toFixed(2)}
-                    </h4>
-                  </div>
-                </Col>
-                <Col md={4}>
-                  <div className="text-center p-3">
-                    <div className="text-muted mb-1">Net Balance</div>
-                    <h4 className={summaryData.monthlySavings >= 0 ? 'text-success' : 'text-danger'}>
-                      {getCurrencySymbol()}
-                      {Math.abs(summaryData.monthlySavings).toFixed(2)}
-                    </h4>
-                  </div>
-                </Col>
-              </Row>
-            </Card.Body>
-          </Card>
-
-          {/* Categories Widget */}
-          <CategoriesWidget
-            categories={categories}
-            onAddCategory={() => handleOpenModal('categories')}
-            onDeleteCategory={(id: number) => handleCategoryAction('delete', id)}
-            currencySymbol={getCurrencySymbol()}
-          />
-
-          {/* Recent Transactions Card */}
-          <RecentTransactionsWidget
-            transactions={filteredTransactions}
-            categories={categories}
-            accounts={accounts}
-            filters={filters}
-            showFilters={showFilters}
-            currencySymbol={getCurrencySymbol()}
-            onFilterChange={setFilters}
-            onToggleFilters={() => setShowFilters(!showFilters)}
-            onAddTransaction={() => handleOpenModal('transaction')}
-          />
-
-          {/* Bottom Row Analytics */}
           <Row className="g-4">
-            <Col md={6}>
-              <Card className="border-0 shadow-sm h-100">
-                <Card.Body>
-                  <CategoryChart
-                    title="Expense Distribution"
-                    data={widgetData.categoryExpenses.map(category => ({
-                      name: categories.find(c => c.id === category.categoryId)?.name || 'Unknown',
-                      amount: category.amount,
-                      percentage: (category.amount / widgetData.categoryExpenses.reduce((sum, cat) => sum + cat.amount, 0)) * 100,
-                      color: categories.find(c => c.id === category.categoryId)?.color || '#000000'
-                    }))}
-                    currency={getCurrencySymbol()}
-                    loading={isLoading} categoryExpense={[]} showLegend={false} height={0}                  />
-                </Card.Body>
-              </Card>
+            <Col xs={12}>
+              {/* Expense Trend Chart */}
+              <BaseWidget 
+                title="Income vs Expenses"
+                loading={isLoading}
+                height={350}
+                action={
+                  <div className="btn-group">
+                    <Button
+                      size="sm"
+                      variant={viewMode === 'monthly' ? 'primary' : 'outline-primary'}
+                      onClick={() => setViewMode('monthly')}
+                    >
+                      Monthly
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={viewMode === 'yearly' ? 'primary' : 'outline-primary'}
+                      onClick={() => setViewMode('yearly')}
+                    >
+                      Yearly
+                    </Button>
+                  </div>
+                }
+              >
+                <ExpenseTrend
+                  data={widgetData.monthlyTrends.map(trend => ({
+                    date: trend.month,
+                    income: trend.income,
+                    expenses: trend.expense
+                  }))}
+                  transactions={transactions}
+                  currency={settings?.currency ?? 'USD'}
+                  loading={isLoading}
+                  height={300}
+                  showLegend={true}
+                />
+              </BaseWidget>
             </Col>
+
             <Col md={6}>
-              <Card className="border-0 shadow-sm h-100">
-                <Card.Header className="border-0 bg-transparent">
-                  <Card.Title className="mb-0">Savings Trend</Card.Title>
-                </Card.Header>
-                <Card.Body>
-                  <SavingsTrend
-                    transactions={transactions}
-                    accounts={accounts}
-                    currency={getCurrencySymbol()}
-                    targetSavings={5000}
-                    currentSavings={summaryData.monthlySavings}
-                    data={widgetData.monthlyTrends}
-                    loading={isLoading} showLegend={false} height={0}                  />
-                </Card.Body>
-              </Card>
+              <BaseWidget 
+                title="Expense Distribution"
+                loading={isLoading}
+                height={350}
+              >
+                <CategoryChart
+                  data={widgetData.categoryDistribution.map(cat => ({
+                    ...cat,
+                    percentage: (cat.amount / summaryData.monthlyExpense) * 100
+                  }))}
+                  loading={isLoading}
+                  showLegend={true}
+                  height={300}
+                  title=""
+                />
+              </BaseWidget>
+            </Col>
+
+            <Col md={6}>
+              <BaseWidget 
+                title="Savings Progress"
+                loading={isLoading}
+                height={350}
+              >
+                <SavingsTrend
+                  data={widgetData.monthlyTrends.map(trend => ({
+                    date: trend.month,
+                    savings: trend.income - trend.expense,
+                    target: widgetData.savingsTarget
+                  }))}
+                  targetSavings={widgetData.savingsTarget}
+                  currentSavings={summaryData.monthlyIncome - summaryData.monthlyExpense}
+                  loading={isLoading}
+                  height={300}
+                  showLegend={true}
+                />
+              </BaseWidget>
+            </Col>
+          </Row>
+
+          <Row className="mt-4">
+            <Col xs={12}>
+              <BaseWidget 
+                title="Recent Transactions"
+                loading={isLoading}
+                action={
+                  <Link to="/transactions" className="btn btn-link btn-sm text-decoration-none">
+                    View All
+                  </Link>
+                }
+              >
+                <RecentTransactionsWidget 
+                  limit={5}
+                  showFilters={false}
+                  compact={true}
+                  transactions={filteredTransactions}
+                  categories={categories}
+                  accounts={accounts}
+                  filters={filters}
+                  currencySymbol={settings?.currency ?? '$'}
+                  onFilterChange={handleFilterChange}
+                  onToggleFilters={() => setShowFilters(!showFilters)}
+                  onAddTransaction={() => handleOpenModal('transaction')}
+                />
+              </BaseWidget>
             </Col>
           </Row>
         </Col>
 
         <Col lg={4}>
-          {/* Accounts Summary */}
-          <Card className="border-0 shadow-sm mb-4">
-            <Card.Header className="bg-white border-0 d-flex justify-content-between align-items-center">
-              <Card.Title className="mb-0">Accounts</Card.Title>
-              <Button 
-                variant="primary"
-                size="sm"
-                onClick={() => handleOpenModal('account')}
-              >
-                <i className="bi bi-plus-lg"></i>
-              </Button>
-            </Card.Header>
-            <Card.Body>
-              {widgetData.accountSummary.map(account => (
-                <div key={account.id} className="mb-3">
-                  <div className="d-flex justify-content-between align-items-center mb-1">
-                    <span className="fw-medium">{account.name}</span>
-                    <span className="fw-bold">{getCurrencySymbol()}{account.balance.toFixed(2)}</span>
-                  </div>
-                  <div className="d-flex justify-content-between">
-                    <small className="text-success">
-                      <i className="bi bi-arrow-up-short"></i>
-                      {getCurrencySymbol()}{account.monthlyIncome.toFixed(2)}
-                    </small>
-                    <small className="text-danger">
-                      <i className="bi bi-arrow-down-short"></i>
-                      {getCurrencySymbol()}{account.monthlyExpense.toFixed(2)}
-                    </small>
-                  </div>
-                </div>
-              ))}
-            </Card.Body>
-          </Card>
-
-          {/* Budget Overview */}
-          <Card className="border-0 shadow-sm mb-4">
-            <Card.Header className="bg-white border-0 d-flex justify-content-between align-items-center">
-              <Card.Title className="mb-0">Budget Overview</Card.Title>
-              <Button 
-                variant="primary"
-                size="sm"
-                onClick={() => handleOpenModal('budget')}
-              >
-                <i className="bi bi-plus-lg"></i>
-              </Button>
-            </Card.Header>
-            <Card.Body>
-              {widgetData.budgetSpending.length > 0 ? (
-                <BudgetSpending
-                  data={widgetData.budgetSpending.map(spending => ({
-                    ...spending,
-                    budgeted: budgets.find(b => b.categoryId === spending.categoryId)?.amount || 0,
-                    color: categories.find(c => c.id === spending.categoryId)?.color || '#000000'
-                  }))}
-                  currency={getCurrencySymbol()}
-                  loading={isLoading}
-                  title="Monthly Budget" categoryExpense={[]} showLegend={false} height={0}                />
-              ) : (
-                <div className="text-center py-4 text-muted">
-                  <i className="bi bi-pie-chart mb-2 fs-2"></i>
-                  <p className="mb-0">No budgets set yet</p>
+          <Row className="g-4">
+            <Col xs={12}>
+              <BaseWidget 
+                title="Accounts Overview"
+                loading={isLoading}
+                action={
                   <Button 
-                    variant="outline-primary"
+                    variant="primary"
                     size="sm"
-                    className="mt-2"
+                    onClick={() => handleOpenModal('account')}
+                  >
+                    <i className="bi bi-plus-lg"></i>
+                  </Button>
+                }
+              >
+                {accounts.map(account => (
+                  <div key={account.id} className="account-item p-3 border-bottom">
+                    <div className="d-flex justify-content-between align-items-center">
+                      <div>
+                        <h6 className="mb-1">{account.name}</h6>
+                        <div className="d-flex gap-3">
+                          <small className="text-success">
+                            <i className="bi bi-arrow-up-short"></i>
+                            {formatCurrency(account.balance)}
+                          </small>
+                        </div>
+                      </div>
+                      <h5 className="mb-0">{formatCurrency(account.balance)}</h5>
+                    </div>
+                  </div>
+                ))}
+              </BaseWidget>
+            </Col>
+
+            <Col xs={12}>
+              <BaseWidget 
+                title="Budget Overview"
+                loading={isLoading}
+                action={
+                  <Button 
+                    variant="primary"
+                    size="sm"
                     onClick={() => handleOpenModal('budget')}
                   >
-                    Set up your first budget
+                    <i className="bi bi-plus-lg"></i>
                   </Button>
-                </div>
-              )}
-            </Card.Body>
-          </Card>
+                }
+              >
+                <BudgetSpending
+                  data={widgetData.budgetSpending.map(budget => ({
+                    categoryId: budget.categoryId,
+                    categoryName: categories.find(c => c.id === budget.categoryId)?.name || 'Unknown',
+                    spent: budget.spent,
+                    budgeted: budget.total,
+                    color: categories.find(c => c.id === budget.categoryId)?.color || '#cccccc'
+                  }))}
+                  loading={isLoading}
+                  title=""
+                  height={300}
+                  showLegend={true}
+                />
+              </BaseWidget>
+            </Col>
 
-          {/* Budget Summary */}
-          <Card className="border-0 shadow-sm mb-4">
-            <Card.Header className="bg-white border-0">
-              <Card.Title className="mb-0">Budget Summary</Card.Title>
-            </Card.Header>
-            <Card.Body>
-              <ul>
-                {budgets.map(budget => (
-                  <li key={budget.id}>
-                    {budget.categoryId} - {budget.amount} ({budget.period})
-                  </li>
-                ))}
-              </ul>
-            </Card.Body>
-          </Card>
-
-          {/* Alerts Section */}
-          <Card className="border-0 shadow-sm mb-4">
-            <Card.Header className="bg-white border-0">
-              <Card.Title className="mb-0">Alerts & Reminders</Card.Title>
-            </Card.Header>
-            <Card.Body className="p-0">
-              <OverBudgetAlert
-                alerts={budgets.map(budget => {
-                  const spent = widgetData.categoryExpenses.find(exp => exp.categoryId === budget.categoryId
-                  )?.amount || 0;
-                  return {
-                    category: categories.find(c => c.id === budget.categoryId)?.name || 'Unknown',
-                    budgeted: budget.amount,
-                    spent: spent,
-                    percentageUsed: (spent / budget.amount) * 100
-                  };
-                }).filter(alert => alert.percentageUsed > 80)}
-                currency={getCurrencySymbol()}
-                loading={isLoading} title={''} categoryExpense={[]} data={[]} showLegend={false} height={0}              />
-              <hr className="my-3" />
-              <UpcomingBills
-                bills={widgetData.upcomingBills.map(bill => ({
-                  id: bill.id,
-                  name: bill.description,
-                  amount: bill.amount,
-                  dueDate: bill.dueDate,
-                  isPaid: false,
-                  isRecurring: false,
-                  status: 'upcoming',
-                  category: categories.find(c => c.id === bill.categoryId)?.name || 'Unknown'
-                }))}
-                currency={getCurrencySymbol()}
-                loading={isLoading} title={''} categoryExpense={[]} data={[]} showLegend={false} height={0}              />
-            </Card.Body>
-          </Card>
+            <Col xs={12}>
+              <BaseWidget 
+                title="Alerts & Insights"
+                loading={isLoading}
+              >
+                <AlertsInsightsWidget
+                  summary={summary || {
+                    totalSavings: 0,
+                    yearlyExpense: 0,
+                    totalBalance: 0,
+                    monthlyIncome: 0,
+                    monthlyExpense: 0,
+                    monthlySavings: 0
+                  }}
+                  className="mb-0"
+                />
+              </BaseWidget>
+            </Col>
+          </Row>
         </Col>
       </Row>
 
@@ -586,20 +610,15 @@ const Dashboard: React.FC = () => {
         )}
 
         {showModal === 'categories' && (
-          <div className="modal-dialog-wrapper">
-            <div className="modal-content">
-              <div className="modal-header">
-                <h5 className="modal-title">Manage Categories</h5>
-                <button type="button" className="btn-close" onClick={handleCloseModal}></button>
-              </div>
-              <div className="modal-body p-0">
-                <CategoryForm
-                  categories={categories}
-                  onAddCategory={(category: Category) => handleCategoryAction('add', category)}
-                />
-              </div>
-            </div>
-          </div>
+          <CategoryModal
+            show={true}
+            onClose={handleCloseModal}
+            categories={categories}
+            selectedCategory={selectedCategory}
+            parentCategoryId={null}
+            onAddCategory={(data) => handleCategoryAction('add', { ...data, type: data.type as 'income' | 'expense' })}
+            onEditCategory={(id, data) => handleCategoryAction('edit', { ...data, id, type: data.type as 'income' | 'expense' })}
+          />
         )}
 
         {showModal === 'budget' && (
@@ -609,7 +628,7 @@ const Dashboard: React.FC = () => {
               budgets={budgets}
               onSaveBudget={handleSaveBudget}
               onClose={handleCloseModal}
-              currency={getCurrencySymbol()}
+              currency={settings?.currency ?? 'USD'}
               onDeleteBudget={(budgetId: number) => {
                 setBudgets(budgets.filter(budget => budget.id !== budgetId));
               }}
@@ -639,6 +658,3 @@ const Dashboard: React.FC = () => {
 
 export default Dashboard;
 
-function showToast(arg0: string, arg1: string) {
-  throw new Error('Function not implemented.');
-}

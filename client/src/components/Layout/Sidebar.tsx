@@ -1,6 +1,8 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useSettings } from '../../context/SettingsContext';
+import ThemeToggle from './ThemeToggle';
 import './Sidebar.css';
 import { Nav, Button } from 'react-bootstrap';
 
@@ -13,6 +15,7 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ collapsed, mobileOpen, onToggle, onClose }) => {
   const { userProfile, logout } = useAuth();
+  const { settings } = useSettings();
   const navigate = useNavigate();
 
   const menuItems = [
@@ -45,6 +48,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, mobileOpen, onToggle, onCl
         sidebar 
         ${collapsed ? 'collapsed' : ''} 
         ${mobileOpen ? 'mobile-open' : ''}
+        theme-${settings?.theme || 'light'}
       `}>
         <div className="sidebar-header">
           <div className="d-flex align-items-center">
@@ -85,16 +89,23 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, mobileOpen, onToggle, onCl
             {!collapsed && (
               <>
                 <div className="user-info">
-                  <div className="user-name">{userProfile?.name || 'User'}</div>
-                  <div className="user-email">{userProfile?.email}</div>
+                  <div className="user-name">
+                    {settings?.privacyMode ? '••••••' : userProfile?.name || 'User'}
+                  </div>
+                  <div className="user-email">
+                    {settings?.privacyMode ? '••••••' : userProfile?.email}
+                  </div>
                 </div>
-                <Button
-                  variant="link"
-                  className="logout-btn"
-                  onClick={handleLogout}
-                >
-                  <i className="bi bi-box-arrow-right"/>
-                </Button>
+                <div className="d-flex gap-2">
+                  <ThemeToggle />
+                  <Button
+                    variant="link"
+                    className="logout-btn"
+                    onClick={handleLogout}
+                  >
+                    <i className="bi bi-box-arrow-right"/>
+                  </Button>
+                </div>
               </>
             )}
           </div>

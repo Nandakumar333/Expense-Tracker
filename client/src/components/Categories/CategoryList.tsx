@@ -1,70 +1,114 @@
-import React, { useState } from 'react';
-import { Row, Col, Card, Button, Alert } from 'react-bootstrap';
-import { Category } from '../../common/types';
+import React from 'react';
+import { Table, Button } from 'react-bootstrap';
+import { useUnifiedSettings } from '../../hooks/useUnifiedSettings';
+
+interface Category {
+  id: string;
+  name: string;
+  type: 'income' | 'expense';
+  parentId?: string;
+  children?: Category[];
+  budget?: number;
+  spent?: number;
+  color: string;
+  icon: string;
+}
 
 interface CategoryListProps {
   categories: Category[];
-  onDeleteCategory: (id: number) => void;
+  onSelect: (category: Category) => void;
+  onEdit: (category: Category) => void;
+  onDelete: (categoryId: string) => void;
+  currency: string;
+  showBudget?: boolean;
 }
 
-const CategoryList: React.FC<CategoryListProps> = ({ categories, onDeleteCategory }) => {
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState<number | null>(null);
-
-  const handleDelete = (id: number) => {
-    if (showDeleteConfirm === id) {
-      onDeleteCategory(id);
-      setShowDeleteConfirm(null);
-    } else {
-      setShowDeleteConfirm(id);
-    }
-  };
-
+export const CategoryList: React.FC<CategoryListProps> = ({
+  categories,
+  onSelect,
+  onEdit,
+  onDelete,
+  currency,
+  showBudget = true
+}) => {
+  const { settings } = useUnifiedSettings();
+  
   return (
-    <Row xs={1} md={2} lg={3} className="g-4">
-      {categories.length === 0 ? (
-        <Col>
-          <Alert variant="info">
-            No categories found. Add your first category above.
-          </Alert>
-        </Col>
-      ) : (
-        categories.map(category => (
-          <Col key={category.id}>
-            <Card className="h-100 border-0 shadow-sm" style={{ backgroundColor: category.color + '10' }}>
-              <Card.Body>
-                <div className="d-flex justify-content-between align-items-center">
-                  <div className="d-flex align-items-center gap-2">
-                    <div 
-                      className="rounded"
-                      style={{ 
-                        backgroundColor: category.color,
-                        width: '24px',
-                        height: '24px',
-                        flexShrink: 0
-                      }}
-                    />
-                    <div>
-                      <h6 className="mb-0">{category.name}</h6>
-                      <span className={`badge bg-${category.type === 'income' ? 'success' : 'danger'}`}>
-                        {category.type}
-                      </span>
-                    </div>
-                  </div>
+    <div className={`category-list theme-${settings?.theme ?? 'light'}`}>
+      <Table responsive hover>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Type</th>
+            <th>Color</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {categories.map((category: Category) => (
+            <tr key={category.id}>
+              <td>
+                <div className="d-flex align-items-center">
+                  <span
+                    className="color-dot me-2"
+                    style={{
+                      backgroundColor: category.color,
+                      width: '12px',
+                      height: '12px',
+                      borderRadius: '50%',
+                      display: 'inline-block'
+                    }}
+                  />
+                  <i className={`bi ${category.icon} me-2`} style={{ color: category.color }} />
+                  {category.name}
+                </div>
+              </td>
+              <td>
+                <span className={`badge bg-${category.type === 'income' ? 'success' : 'danger'}`}>
+                  {category.type}
+                </span>
+              </td>
+              <td>
+                <div
+                  className="color-preview"
+                  style={{
+                    backgroundColor: category.color,
+                    width: '24px',
+                    height: '24px',
+                    borderRadius: '4px'
+                  }}
+                />
+              </td>
+              <td>
+                <div className="d-flex gap-2">
                   <Button
-                    variant={showDeleteConfirm === category.id ? 'danger' : 'outline-danger'}
                     size="sm"
-                    onClick={() => handleDelete(category.id)}
+                    variant="outline-primary"
+                    onClick={() => onEdit(category)}
                   >
-                    <i className="bi bi-trash"></i>
-                    {showDeleteConfirm === category.id ? ' Confirm' : ' Delete'}
+                    <i className="bi bi-pencil" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline-danger"
+                    onClick={() => onDelete(category.id)}
+                  >
+                    <i className="bi bi-trash" />
                   </Button>
                 </div>
-              </Card.Body>
-            </Card>
-          </Col>
-        ))
-      )}
-    </Row>
+              </td>
+            </tr>
+          ))}
+          {categories.length === 0 && (
+            <tr>
+              <td colSpan={4} className="text-center text-muted py-4">
+                No categories found. Add your first category to get started.
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </Table>
+    </div>
   );
 };
 

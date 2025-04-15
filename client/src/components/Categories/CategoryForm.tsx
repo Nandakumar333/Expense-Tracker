@@ -1,97 +1,118 @@
-import React, { useState } from 'react';
-import { Row, Col, Form, Button, Alert, Card } from 'react-bootstrap';
-import { Category } from '../../common/types';
+import React, { useState, useEffect } from 'react';
+import { Form, Button } from 'react-bootstrap';
+import { Category, CategoryForm as CategoryFormType } from '../../common/types';
+import { useUnifiedSettings } from '../../hooks/useUnifiedSettings';
 
 interface CategoryFormProps {
-  categories: Category[];
-  onAddCategory: (category: Category) => void;
+  category?: Category;
+  onSubmit: (data: CategoryFormType) => void;
+  onClose: () => void;
 }
 
-const CategoryForm: React.FC<CategoryFormProps> = ({ categories, onAddCategory }) => {
-  const [name, setName] = useState('');
-  const [type, setType] = useState<'income' | 'expense'>('expense');
-  const [color, setColor] = useState('#e74c3c');
-  const [error, setError] = useState('');
+const CategoryForm: React.FC<CategoryFormProps> = ({ category, onSubmit, onClose }) => {
+  const { settings } = useUnifiedSettings();
+  const [formData, setFormData] = useState<CategoryFormType>({
+    name: '',
+    type: 'expense',
+    color: '#6c757d',
+    icon: 'bi-tag',
+    parentId: null
+  });
+
+  useEffect(() => {
+    if (category) {
+      setFormData({
+        name: category.name,
+        type: category.type,
+        color: category.color,
+        icon: category.icon ?? 'bi-tag',
+        parentId: category.parentId ?? null
+      });
+    }
+  }, [category]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!name.trim()) {
-      setError('Category name is required');
-      return;
-    }
-
-    if (categories.some(cat => cat.name.toLowerCase() === name.toLowerCase())) {
-      setError('Category already exists');
-      return;
-    }
-
-    const newCategory: Category = {
-      id: categories.length + 1,
-      name: name.trim(),
-      type,
-      color
-    };
-
-    onAddCategory(newCategory);
-    setName('');
-    setType('expense');
-    setColor('#e74c3c');
-    setError('');
+    onSubmit(formData);
   };
 
   return (
-    <Card className="mb-4 border-0 shadow-sm">
-      <Card.Body>
-        <Form onSubmit={handleSubmit}>
-          {error && <Alert variant="danger">{error}</Alert>}
-          
-          <Row className="g-3">
-            <Col md={5}>
-              <Form.Group>
-                <Form.Label>Category Name</Form.Label>
-                <Form.Control
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Enter category name"
-                />
-              </Form.Group>
-            </Col>
+    <Form onSubmit={handleSubmit} className={`theme-${settings?.theme ?? 'light'}`}>
+      <Form.Group className="mb-3">
+        <Form.Label>Name</Form.Label>
+        <Form.Control
+          type="text"
+          value={formData.name}
+          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+          required
+        />
+      </Form.Group>
 
-            <Col md={4}>
-              <Form.Group>
-                <Form.Label>Type</Form.Label>
-                <Form.Select
-                  value={type}
-                  onChange={(e) => setType(e.target.value as 'income' | 'expense')}
-                >
-                  <option value="expense">Expense</option>
-                  <option value="income">Income</option>
-                </Form.Select>
-              </Form.Group>
-            </Col>
+      <Form.Group className="mb-3">
+        <Form.Label>Type</Form.Label>
+        <Form.Select
+          value={formData.type}
+          onChange={(e) => setFormData({ ...formData, type: e.target.value as 'income' | 'expense' })}
+          required
+        >
+          <option value="expense">Expense</option>
+          <option value="income">Income</option>
+        </Form.Select>
+      </Form.Group>
 
-            <Col md={3}>
-              <Form.Group>
-                <Form.Label>Color</Form.Label>
-                <div className="d-flex gap-2">
-                  <Form.Control
-                    type="color"
-                    value={color}
-                    onChange={(e) => setColor(e.target.value)}
-                    title="Choose category color"
-                  />
-                  <Button type="submit" variant="primary" className="flex-grow-1">
-                    <i className="bi bi-plus-lg"></i> Add
-                  </Button>
-                </div>
-              </Form.Group>
-            </Col>
-          </Row>
-        </Form>
-      </Card.Body>
-    </Card>
+      <Form.Group className="mb-3">
+        <Form.Label>Color</Form.Label>
+        <div className="d-flex align-items-center gap-2">
+          <Form.Control
+            type="color"
+            value={formData.color}
+            onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+          />
+          <div
+            className="color-preview"
+            style={{
+              width: '24px',
+              height: '24px',
+              backgroundColor: formData.color,
+              borderRadius: '4px'
+            }}
+          />
+        </div>
+      </Form.Group>
+
+      <Form.Group className="mb-3">
+        <Form.Label>Icon</Form.Label>
+        <Form.Select
+          value={formData.icon}
+          onChange={(e) => setFormData({ ...formData, icon: e.target.value })}
+        >
+          <option value="bi-tag">Tag</option>
+          <option value="bi-cart">Cart</option>
+          <option value="bi-house">House</option>
+          <option value="bi-car-front">Car</option>
+          <option value="bi-cash">Cash</option>
+          <option value="bi-credit-card">Credit Card</option>
+          <option value="bi-gift">Gift</option>
+          <option value="bi-heart">Heart</option>
+          <option value="bi-lightbulb">Utilities</option>
+          <option value="bi-phone">Phone</option>
+          <option value="bi-shop">Shop</option>
+          <option value="bi-basket">Groceries</option>
+        </Form.Select>
+        <div className="mt-2">
+          <i className={`bi ${formData.icon} fs-4`} style={{ color: formData.color }} />
+        </div>
+      </Form.Group>
+
+      <div className="d-flex justify-content-end gap-2">
+        <Button variant="secondary" onClick={onClose}>
+          Cancel
+        </Button>
+        <Button variant="primary" type="submit">
+          {category ? 'Update' : 'Add'} Category
+        </Button>
+      </div>
+    </Form>
   );
 };
 

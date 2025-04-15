@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Container, Navbar, Button } from 'react-bootstrap';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { SettingsProvider } from './context/SettingsContext';
+import { ThemeProvider } from './context/ThemeContext';
 import Sidebar from './components/Layout/Sidebar';
 import Dashboard from './pages/Dashboard/Dashboard';
 import Login from './pages/Auth/Login';
@@ -10,6 +12,8 @@ import Profile from './pages/Profile/Profile';
 import TransactionsPage from './pages/Transactions/TransactionsPage';
 import BudgetPage from './pages/Budget/BudgetPage';
 import CategoryPage from './pages/Categories/CategoryPage';
+import ReportsPage from './pages/Reports/ReportsPage';
+import SettingsPage from './pages/Settings/SettingsPage';
 import './App.css';
 
 const AppContent: React.FC = () => {
@@ -109,7 +113,9 @@ const AppContent: React.FC = () => {
             <Route path="/transactions" element={<TransactionsPage />} />
             <Route path="/budget" element={<BudgetPage />} />
             <Route path="/categories" element={<CategoryPage />} />
+            <Route path="/reports" element={<ReportsPage />} />
             <Route path="/profile" element={<Profile />} />
+            <Route path="/settings" element={<SettingsPage />} />
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </Container>
@@ -121,7 +127,11 @@ const AppContent: React.FC = () => {
 const App: React.FC = () => (
   <Router>
     <AuthProvider>
-      <AppContent />
+      <SettingsProvider>
+        <ThemeProvider>
+          <AppContent />
+        </ThemeProvider>
+      </SettingsProvider>
     </AuthProvider>
   </Router>
 );

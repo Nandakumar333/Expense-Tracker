@@ -14,26 +14,9 @@ export class DashboardService {
     this.transactionService = new TransactionService();
     this.accountService = new AccountService();
     this.categoryService = new CategoryService();
-
-    // Initialize repositories with default data
-    const accountRepo = new AccountRepository();
-    const categoryRepo = new CategoryRepository();
-    accountRepo.initializeDefaultAccounts();
-    categoryRepo.initializeDefaultCategories();
   }
 
-  getDashboardData(): {
-    transactions: Transaction[];
-    accounts: Account[];
-    categories: Category[];
-    budgets: Budget[];
-  } {
-    // Initialize default data
-    const accountRepo = new AccountRepository();
-    const categoryRepo = new CategoryRepository();
-    accountRepo.initializeDefaultAccounts();
-    categoryRepo.initializeDefaultCategories();
-
+  async getDashboardData() {
     const defaultBudgets: Budget[] = [
       {
         id: 1,
@@ -58,12 +41,29 @@ export class DashboardService {
       }
     ];
 
-    return {
-      transactions: this.transactionService.getTransactions(),
-      accounts: this.accountService.getAccounts(),
-      categories: this.categoryService.getCategories(),
-      budgets: defaultBudgets
-    };
+    try {
+      const [transactions, accounts, categories, budgets] = await Promise.all([
+        this.transactionService.getTransactions(),
+        this.accountService.getAccounts(),
+        this.categoryService.getCategories(),
+        Promise.resolve(defaultBudgets) // if budgets are not async yet
+      ]);
+
+      return {
+        transactions,
+        accounts,
+        categories,
+        budgets
+      };
+    } catch (error) {
+      console.error('Error loading dashboard data:', error);
+      return {
+        transactions: [],
+        accounts: [],
+        categories: [],
+        budgets: []
+      };
+    }
   }
 
   addTransaction(data: TransactionForm): Transaction {
@@ -116,7 +116,13 @@ export class DashboardService {
       monthlyIncome,
       monthlyExpense,
       monthlySavings: monthlyIncome - monthlyExpense,
-      yearlyExpense
+      yearlyExpense,
+      totalSavings: transactions
+        .filter(t => t.type === 'income')
+        .reduce((sum, t) => sum + t.amount, 0) -
+        Math.abs(transactions
+          .filter(t => t.type === 'expense')
+          .reduce((sum, t) => sum + t.amount, 0))
     };
   }
 

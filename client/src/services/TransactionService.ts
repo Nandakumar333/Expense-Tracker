@@ -14,18 +14,18 @@ export class TransactionService {
   addTransaction(data: TransactionForm): Transaction {
     const newTransaction: Transaction = {
       id: Date.now(),
-      description: data.description,
+      description: data.description || '',
       amount: data.amount,
-      date: data.date,
+      date: data.date || new Date().toISOString(),
       type: data.amount > 0 ? 'income' : 'expense',
       categoryId: Number(data.categoryId),
       categoryName: '', // Will be set by component
-      accountId: data.accountId,
+      accountId: Number(data.accountId),
       accountName: '' // Will be set by component
     };
 
     this.transactionRepo.addTransaction(newTransaction);
-    this.accountRepo.updateBalance(data.accountId, data.amount);
+    this.accountRepo.updateBalance(Number(data.accountId), data.amount);
 
     return newTransaction;
   }
@@ -65,8 +65,22 @@ export class TransactionService {
     return transactions;
   }
 
-  getTransactions(): Transaction[] {
-    return this.transactionRepo.getTransactions();
+  getTransactions(filters?: { startDate?: Date; endDate?: Date; type?: string }): Transaction[] {
+    let transactions = this.transactionRepo.getTransactions();
+    
+    if (filters) {
+      if (filters.startDate) {
+        transactions = transactions.filter(t => new Date(t.date) >= filters.startDate!);
+      }
+      if (filters.endDate) {
+        transactions = transactions.filter(t => new Date(t.date) <= filters.endDate!);
+      }
+      if (filters.type) {
+        transactions = transactions.filter(t => t.type === filters.type);
+      }
+    }
+
+    return transactions;
   }
 
   deleteTransaction(id: number): void {

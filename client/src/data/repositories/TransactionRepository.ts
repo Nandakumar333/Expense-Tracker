@@ -1,45 +1,24 @@
 import { BaseRepository } from './BaseRepository';
 import { Transaction } from '../../common/types';
+import { CategoryRepository } from './CategoryRepository';
+import { AccountRepository } from './AccountRepository';
 
 export class TransactionRepository extends BaseRepository<Transaction> {
-  constructor() {
+  private categoryRepository: CategoryRepository;
+  private accountRepository: AccountRepository;
+
+  constructor(
+    categoryRepository: CategoryRepository = new CategoryRepository(),
+    accountRepository: AccountRepository = new AccountRepository()
+  ) {
     super('transactions');
+    this.categoryRepository = categoryRepository;
+    this.accountRepository = accountRepository;
     this.initializeDefaultTransactions();
   }
 
-  initializeDefaultTransactions(): void {
-    const defaultTransactions: Transaction[] = [
-      {
-        id: 1,
-        description: 'Monthly Salary',
-        amount: 5000,
-        date: new Date().toISOString().split('T')[0],
-        type: 'income',
-        categoryId: 2,
-        categoryName: 'Salary',
-        accountId: 1,
-        accountName: 'Main Account'
-      },
-      {
-        id: 2,
-        description: 'Grocery Shopping',
-        amount: -150,
-        date: new Date().toISOString().split('T')[0],
-        type: 'expense',
-        categoryId: 1,
-        categoryName: 'Food',
-        accountId: 1,
-        accountName: 'Main Account'
-      }
-    ];
-
-    if (this.getAll().length === 0) {
-      this.save(defaultTransactions);
-    }
-  }
-
   getTransactions(): Transaction[] {
-    return this.getAll() || [];
+    return this.getAll();
   }
 
   addTransaction(transaction: Transaction): Transaction {
@@ -72,5 +51,54 @@ export class TransactionRepository extends BaseRepository<Transaction> {
     }
     this.save(filteredTransactions);
     return true;
+  }
+
+  private initializeDefaultTransactions(): void {
+    const categories = this.categoryRepository.getCategories();
+    const accounts = this.accountRepository.getAccounts();
+
+    if (!categories?.length || !accounts?.length) {
+      return;
+    }
+
+    const defaultTransactions: Transaction[] = [];
+    const today = new Date();
+    let transactionId = 1;
+    
+    for (let month = 0; month < 6; month++) {
+      for (let i = 0; i < 20; i++) {
+        const monthDate = new Date(today.getFullYear(), today.getMonth() - month, 
+          Math.floor(Math.random() * 28) + 1);
+        
+        const category = categories[Math.floor(Math.random() * categories.length)];
+        if (!category?.type) {
+          continue;
+        }
+
+        const account = accounts[0];
+        const isIncome = category.type === 'income';
+        const amount = isIncome ? 
+          5000 + Math.floor(Math.random() * 3000) : 
+          -(20 + Math.floor(Math.random() * 980));
+
+        defaultTransactions.push({
+          id: transactionId++,
+          description: `${category.name} - ${isIncome ? 'Income' : 'Payment'} (${monthDate.toLocaleString('default', { month: 'long' })})`,
+          amount,
+          date: monthDate.toISOString().split('T')[0],
+          type: isIncome ? 'income' : 'expense',
+          categoryId: category.id,
+          categoryName: category.name,
+          accountId: account.id,
+          accountName: account.name
+        });
+      }
+    }
+
+    defaultTransactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+    if (this.getAll().length === 0) {
+      this.save(defaultTransactions);
+    }
   }
 }

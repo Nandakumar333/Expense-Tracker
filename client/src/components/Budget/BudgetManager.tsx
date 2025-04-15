@@ -1,220 +1,145 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState } from 'react';
+import { Modal, Form, Button } from 'react-bootstrap';
 import { Budget, Category } from '../../common/types';
-import { Modal, Form, Button, ListGroup, Alert, InputGroup } from 'react-bootstrap';
+import { useUnifiedSettings } from '../../hooks/useUnifiedSettings';
 
 interface BudgetManagerProps {
   categories: Category[];
   budgets: Budget[];
-  onSaveBudget: (budget: Omit<Budget, 'id'>) => void;
-  onUpdateBudget: (budget: Budget) => void;
-  onDeleteBudget: (budgetId: number) => void;
-  onClose: () => void;
   currency: string;
-  isLoading?: boolean;
+  onSaveBudget: (budget: Omit<Budget, 'id'>) => void;
+  onDeleteBudget: (id: number) => void;
+  onUpdateBudget: (budget: Budget) => void;
+  onClose: () => void;
 }
 
 const BudgetManager: React.FC<BudgetManagerProps> = ({
   categories,
   budgets,
   onSaveBudget,
-  onUpdateBudget,
   onDeleteBudget,
-  onClose,
-  currency,
-  isLoading = false
+  onUpdateBudget,
+  onClose
 }) => {
+  const { settings, formatCurrency } = useUnifiedSettings();
   const [formData, setFormData] = useState({
-    id: null as number | null,
-    categoryId: categories[0]?.id || 0,
+    categoryId: '',
     amount: '',
-    period: 'monthly' as 'monthly' | 'yearly',
-    startDate: new Date().toISOString().split('T')[0]
+    period: 'monthly'
   });
-  const [deleteConfirmation, setDeleteConfirmation] = useState<number | null>(null);
-  const [isEditing, setIsEditing] = useState(false);
-  const [validated, setValidated] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const validateForm = (): boolean => {
-    if (!formData.categoryId || !formData.amount || !formData.startDate) {
-      setError('Please fill in all required fields');
-      return false;
-    }
-    if (Number(formData.amount) <= 0) {
-      setError('Amount must be greater than 0');
-      return false;
-    }
-    setError(null);
-    return true;
-  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setValidated(true);
-    
-    if (!validateForm()) return;
-
-    const budgetData = {
+    onSaveBudget({
       categoryId: Number(formData.categoryId),
       amount: Number(formData.amount),
-      period: formData.period,
-      startDate: formData.startDate
-    };
-
-    if (isEditing && formData.id) {
-      onUpdateBudget({ ...budgetData, id: formData.id });
-    } else {
-      onSaveBudget(budgetData);
-    }
-
-    resetForm();
-    setValidated(false);
-  };
-
-  const resetForm = () => {
-    setFormData({
-      id: null,
-      categoryId: categories[0]?.id || 0,
-      amount: '',
-      period: 'monthly',
-      startDate: new Date().toISOString().split('T')[0]
+      period: formData.period as 'monthly' | 'yearly',
+      startDate: ''
     });
-    setIsEditing(false);
+    setFormData({ categoryId: '', amount: '', period: 'monthly' });
   };
 
   const handleEdit = (budget: Budget) => {
     setFormData({
-      id: budget.id,
-      categoryId: budget.categoryId,
+      categoryId: budget.categoryId.toString(),
       amount: budget.amount.toString(),
-      period: budget.period,
-      startDate: budget.startDate
+      period: budget.period
     });
-    setIsEditing(true);
   };
-
-  const handleDelete = (budgetId: number) => {
-    if (deleteConfirmation === budgetId) {
-      onDeleteBudget(budgetId);
-      setDeleteConfirmation(null);
-    } else {
-      setDeleteConfirmation(budgetId);
-    }
-  };
-
-  const sortedBudgets = useCallback(() => {
-    return [...budgets].sort((a, b) => b.amount - a.amount);
-  }, [budgets]);
 
   return (
-    <Modal show={true} onHide={onClose} size="lg" centered>
+    <Modal show onHide={onClose} centered className={`theme-${settings?.theme ?? 'light'}`}>
       <Modal.Header closeButton>
-        <Modal.Title>{isEditing ? 'Edit Budget' : 'Add New Budget'}</Modal.Title>
+        <Modal.Title>Budget Manager</Modal.Title>
       </Modal.Header>
       <Modal.Body>
-        {error && <Alert variant="danger">{error}</Alert>}
-        
-        <Form noValidate validated={validated} onSubmit={handleSubmit}>
+        <Form onSubmit={handleSubmit}>
           <Form.Group className="mb-3">
             <Form.Label>Category</Form.Label>
             <Form.Select
               value={formData.categoryId}
-              onChange={e => setFormData({ ...formData, categoryId: Number(e.target.value) })}
+              onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
               required
             >
-              <option value="">Select a category</option>
-              {categories.map(category => (
-                <option key={category.id} value={category.id}>{category.name}</option>
-              ))}
+              <option value="">Select Category</option>
+              {categories
+                .filter(category => category.type === 'expense')
+                .map(category => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
             </Form.Select>
           </Form.Group>
 
           <Form.Group className="mb-3">
-            <Form.Label>Budget Amount</Form.Label>
-            <InputGroup>
-              <InputGroup.Text>{currency}</InputGroup.Text>
-              <Form.Control
-                type="number"
-                step="0.01"
-                value={formData.amount}
-                onChange={e => setFormData({ ...formData, amount: e.target.value })}
-                required
-                min="0"
-              />
-            </InputGroup>
+            <Form.Label>Budget Amount ({settings?.currency})</Form.Label>
+            <Form.Control
+              type="number"
+              min="0"
+              step="0.01"
+              value={formData.amount}
+              onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+              required
+            />
           </Form.Group>
 
           <Form.Group className="mb-3">
             <Form.Label>Period</Form.Label>
             <Form.Select
               value={formData.period}
-              onChange={e => setFormData({ ...formData, period: e.target.value as 'monthly' | 'yearly' })}
+              onChange={(e) => setFormData({ ...formData, period: e.target.value })}
+              required
             >
               <option value="monthly">Monthly</option>
               <option value="yearly">Yearly</option>
             </Form.Select>
           </Form.Group>
 
-          <Form.Group className="mb-3">
-            <Form.Label>Start Date</Form.Label>
-            <Form.Control
-              type="date"
-              value={formData.startDate}
-              onChange={e => setFormData({ ...formData, startDate: e.target.value })}
-              required
-            />
-          </Form.Group>
-
-          <div className="d-flex gap-2">
-            <Button type="submit" disabled={isLoading}>
-              {isLoading ? 'Processing...' : (isEditing ? 'Update Budget' : 'Save Budget')}
-            </Button>
-            {isEditing && (
-              <Button variant="secondary" onClick={resetForm}>
-                Cancel
-              </Button>
-            )}
-          </div>
+          <Button variant="primary" type="submit">
+            Add Budget
+          </Button>
         </Form>
 
         <hr />
 
         <h6>Current Budgets</h6>
-        <ListGroup>
-          {sortedBudgets().map(budget => (
-            <ListGroup.Item key={budget.id}>
+        <div className="budget-list">
+          {budgets.map(budget => (
+            <div key={budget.id} className="budget-item p-3 border rounded mb-2">
               <div className="d-flex justify-content-between align-items-center">
                 <div>
-                  <h6 className="mb-0">
-                    {categories.find(c => c.id === budget.categoryId)?.name}
-                  </h6>
-                  <small className="text-muted">
-                    {budget.period === 'monthly' ? 'Monthly' : 'Yearly'} Budget
-                  </small>
+                  <strong>{categories.find(c => c.id === budget.categoryId)?.name}</strong>
+                  <div className="text-muted small">
+                    {formatCurrency(budget.amount)} per {budget.period}
+                  </div>
                 </div>
-                <div className="d-flex align-items-center gap-2">
-                  <span className="h6 mb-0">{currency}{budget.amount}</span>
+                <div>
                   <Button
                     variant="outline-primary"
                     size="sm"
+                    className="me-2"
                     onClick={() => handleEdit(budget)}
-                    disabled={isLoading}
                   >
-                    Edit
+                    <i className="bi bi-pencil"></i>
                   </Button>
                   <Button
-                    variant={deleteConfirmation === budget.id ? 'danger' : 'outline-danger'}
+                    variant="outline-danger"
                     size="sm"
-                    onClick={() => handleDelete(budget.id)}
-                    disabled={isLoading}
+                    onClick={() => onDeleteBudget(budget.id)}
                   >
-                    {deleteConfirmation === budget.id ? 'Confirm' : 'Delete'}
+                    <i className="bi bi-trash"></i>
                   </Button>
                 </div>
               </div>
-            </ListGroup.Item>
+            </div>
           ))}
-        </ListGroup>
+          {budgets.length === 0 && (
+            <div className="text-muted text-center py-3">
+              No budgets set yet
+            </div>
+          )}
+        </div>
       </Modal.Body>
     </Modal>
   );

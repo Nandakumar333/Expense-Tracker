@@ -114,6 +114,7 @@ const TransactionsPage: React.FC = () => {
           ...selectedTransaction,
           ...data,
           categoryId: Number(data.categoryId),
+          accountId: Number(data.accountId),
           amount: data.type === 'expense' ? -Math.abs(data.amount) : Math.abs(data.amount),
           type: data.type as 'income' | 'expense' | 'transfer'
         };
@@ -235,8 +236,7 @@ const TransactionsPage: React.FC = () => {
       <TransactionFilters
         filters={filters}
         categories={categories}
-        onFilterChange={handleFilterChange}
-      />
+        onFilterChange={handleFilterChange} accounts={[]}      />
 
       <Card className="border-0 shadow-sm">
         {isLoading ? (
@@ -255,19 +255,21 @@ const TransactionsPage: React.FC = () => {
         )}
       </Card>
 
-      <TransactionModal
-        show={!!showModal}
-        mode={showModal}
-        accounts={accounts}
-        categories={categories}
-        onTransaction={handleTransaction}
-        onTransfer={handleTransfer}
-        onClose={() => {
-          setShowModal(null);
-          setSelectedTransaction(null);
-        }}
-        selectedTransaction={selectedTransaction}
-      />
+      {showModal && (
+        <TransactionModal
+          show={true}
+          mode={showModal}
+          accounts={accounts}
+          categories={categories}
+          onTransaction={handleTransaction}
+          onTransfer={handleTransfer}
+          onClose={() => {
+            setShowModal(null);
+            setSelectedTransaction(null);
+          }}
+          selectedTransaction={selectedTransaction}
+        />
+      )}
     </Container>
   );
 };

@@ -1,79 +1,113 @@
 import React from 'react';
-import { WidgetProps } from '../../../common/types';
+import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { useUnifiedSettings } from '../../../hooks/useUnifiedSettings';
+import BaseWidget from '../BaseWidget';
 
-interface CategoryData {
+interface CategoryExpense {
   name: string;
   amount: number;
-  color: string;
   percentage: number;
+  color: string;
 }
 
-interface CategoryChartProps extends WidgetProps {
-  data: CategoryData[];
-  currency: string;
+interface CategoryChartProps {
   title: string;
+  data: CategoryExpense[];
+  loading?: boolean;
+  showLegend?: boolean;
+  height?: number;
 }
 
 const CategoryChart: React.FC<CategoryChartProps> = ({
+  title,
   data,
-  currency,
-  loading,
-  title
+  loading = false,
+  showLegend = true,
+  height = 300
 }) => {
+  const { settings, formatCurrency, formatNumber } = useUnifiedSettings();
+
+  const CustomTooltip = ({ active, payload }: any) => {
+    if (active && payload && payload.length) {
+      const item = payload[0].payload;
+      return (
+        <div className={`custom-tooltip theme-${settings?.theme ?? 'light'}`}>
+          <p className="category">{item.name}</p>
+          <p className="amount">{formatCurrency(item.amount)}</p>
+          <p className="percentage">{item.percentage.toFixed(1)}%</p>
+        </div>
+      );
+    }
+    return null;
+  };
+
+  const renderCustomizedLabel = ({
+    cx,
+    cy,
+    midAngle,
+    innerRadius,
+    outerRadius,
+    percent,
+    name
+  }: any) => {
+    const RADIAN = Math.PI / 180;
+    const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+    const x = cx + radius * Math.cos(-midAngle * RADIAN);
+    const y = cy + radius * Math.sin(-midAngle * RADIAN);
+
+    return percent > 0.05 ? (
+      <text
+        x={x}
+        y={y}
+        fill="white"
+        textAnchor={x > cx ? 'start' : 'end'}
+        dominantBaseline="central"
+        className={`chart-label theme-${settings?.theme ?? 'light'}`}
+      >
+        {`${name} (${(percent * 100).toFixed(0)}%)`}
+      </text>
+    ) : null;
+  };
+
   return (
-    <div className="h-100 d-flex flex-column">
-      {title && <h6 className="text-muted mb-3">{title}</h6>}
-      <div className="flex-grow-1">
-        {loading ? (
-          <div className="d-flex justify-content-center align-items-center h-100">
-            <div className="spinner-border text-primary" role="status">
-              <span className="visually-hidden">Loading...</span>
-            </div>
-          </div>
-        ) : data.length === 0 ? (
-          <div className="d-flex justify-content-center align-items-center h-100 text-muted">
-            No data available
-          </div>
-        ) : (
-          <div className="category-breakdown">
-            {data.map((item, index) => (
-              <div key={index} className="mb-3">
-                <div className="d-flex justify-content-between align-items-center mb-1">
-                  <div className="d-flex align-items-center">
-                    <div
-                      className="color-dot me-2"
-                      style={{
-                        width: '10px',
-                        height: '10px',
-                        borderRadius: '50%',
-                        backgroundColor: item.color
-                      }}
-                    ></div>
-                    <span className="text-truncate" style={{ maxWidth: '120px' }}>
-                      {item.name}
+    <BaseWidget title={title} loading={loading}>
+      <div style={{ width: '100%', height: height || 300 }}>
+        {data.length > 0 ? (
+          <ResponsiveContainer>
+            <PieChart>
+              <Pie
+                data={data}
+                dataKey="amount"
+                nameKey="name"
+                cx="50%"
+                cy="50%"
+                labelLine={false}
+                label={renderCustomizedLabel}
+                outerRadius={height ? height * 0.4 : 120}
+              >
+                {data.map((entry, index) => (
+                  <Cell key={index} fill={entry.color} />
+                ))}
+              </Pie>
+              <Tooltip content={<CustomTooltip />} />
+              {showLegend && (
+                <Legend
+                  formatter={(value, entry: any) => (
+                    <span className={`legend-item theme-${settings?.theme ?? 'light'}`}>
+                      {value} ({formatCurrency(entry.payload.amount)})
                     </span>
-                  </div>
-                  <div className="text-end">
-                    <small className="text-muted">
-                      {currency}{item.amount.toFixed(2)} ({item.percentage.toFixed(1)}%)
-                    </small>
-                  </div>
-                </div>
-                <div className="progress" style={{ height: '4px' }}>
-                  <div
-                    className="progress-bar"
-                    style={{
-                      width: `${item.percentage}%`,
-                      backgroundColor: item.color
-                    }}
-                  ></div>
-                </div>
-              </div>
-            ))}
+                  )}
+                />
+              )}
+            </PieChart>
+          </ResponsiveContainer>
+        ) : (
+          <div className="text-center text-muted py-5">
+            No data available
           </div>
         )}
       </div>
-    </div>
+    </BaseWidget>
   );
 };
 
