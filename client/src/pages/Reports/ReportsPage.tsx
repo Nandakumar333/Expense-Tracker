@@ -13,7 +13,7 @@ import ExpenseAnalytics from '../../components/Widgets/ExpenseBreakdown/ExpenseA
 import CategoryComparison from '../../components/Widgets/ExpenseBreakdown/CategoryComparison';
 import MonthlySpendingCalendar from '../../components/Widgets/ExpenseBreakdown/MonthlySpendingCalendar';
 import TransactionInsights from '../../components/Widgets/ExpenseBreakdown/TransactionInsights';
-import { getBudgets } from '../../services/BudgetService';
+import { budgetService } from '../../services/BudgetService';
 import { CategoryService } from '../../services/CategoryService';
 import { useUnifiedSettings } from '../../hooks/useUnifiedSettings';
 import BaseWidget from '../../components/Widgets/BaseWidget';
@@ -69,7 +69,7 @@ const ReportsPage: React.FC = () => {
           type: reportType === 'both' ? undefined : reportType
         }),
         categoryService.getCategories(),
-        getBudgets()
+        budgetService.getBudgets()
       ]);
 
       setTransactions(current);

@@ -95,6 +95,8 @@ export interface Budget {
   amount: number;
   period: 'monthly' | 'yearly';
   startDate: string;
+  rollover: boolean;
+  description: string;
 }
 
 export interface WidgetProps {
@@ -164,15 +166,15 @@ export interface UpcomingBill {
 }
 
 export interface BudgetAlert {
-  currentSpending: any;
-  amount: any;
+  currentSpending: number;
+  amount: number;
   category: string;
   message: string;
   severity: 'low' | 'medium' | 'high';
 }
 
 export interface AlertData {
-  spent: any;
+  spent: number;
   actual: number;
   budget: number;
   category: string;
@@ -181,7 +183,7 @@ export interface AlertData {
 }
 
 export interface BudgetSpending {
-  amount: any;
+  amount: number;
   category: string;
   spent: number;
   total: number;
@@ -208,18 +210,82 @@ export interface CategoryDistribution {
 }
 
 export interface WidgetData {
-  expenseTrends: any;
-  yearlyTrends: any;
-  budgetData: BudgetData[];
-  overBudgetAlerts: AlertData[];
-  categoryExpenses: CategoryExpense[];
-  monthlyTrends: MonthlyTrend[];
+  expenseTrends: Array<{
+    date: string;
+    income: number;
+    expenses: number;
+    savings: number;
+  }>;
+  yearlyTrends: Array<{
+    month: string;
+    income: number;
+    expenses: number;
+    savings: number;
+  }>;
+  budgetData: Array<{
+    categoryId: number;
+    category: string;
+    budgeted: number;
+    spent: number;
+    percentageUsed: number;
+    color?: string;
+  }>;
+  overBudgetAlerts: Array<{
+    category: string;
+    currentSpending: number;
+    amount: number;
+    message: string;
+    severity: 'low' | 'medium' | 'high';
+  }>;
+  categoryExpenses: Array<{
+    categoryId: number;
+    amount: number;
+    percentage: number;
+  }>;
+  monthlyTrends: Array<{
+    month: string;
+    income: number;
+    expense: number;
+    savings: number;
+  }>;
   savingsTarget: number;
-  upcomingBills: UpcomingBill[];
-  alerts: BudgetAlert[];
-  budgetSpending: BudgetSpending[];
-  accountSummary: AccountSummary[];
-  categoryDistribution: CategoryDistribution[];
+  upcomingBills: Array<{
+    id: number;
+    categoryId: number;
+    description: string;
+    amount: number;
+    dueDate: string;
+  }>;
+  alerts: Array<{
+    category: string;
+    message: string;
+    severity: 'low' | 'medium' | 'high';
+  }>;
+  budgetSpending: Array<{
+    categoryId: number;
+    category: string;
+    spent: number;
+    total: number;
+    percentage: number;
+    color?: string;
+  }>;
+  accountSummary: Array<{
+    id: number;
+    name: string;
+    balance: number;
+    monthlyIncome: number;
+    monthlyExpense: number;
+    netFlow: number;
+  }>;
+  categoryDistribution: Array<{
+    id: number;
+    name: string;
+    color: string;
+    amount: number;
+    count: number;
+    type: string;
+    percentage: number;
+  }>;
   totals: {
     income: number;
     expenses: number;
@@ -231,7 +297,7 @@ export interface UserSettings {
   privacySettings: {};
   browserNotifications: boolean;
   version: string;
-  lastModified: any;
+  lastModified: {};
   currency: string;
   language: string;
   theme: 'light' | 'dark';

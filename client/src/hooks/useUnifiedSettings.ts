@@ -20,6 +20,7 @@ export const useUnifiedSettings = () => {
 
   const resetToDefaults = useCallback(async () => {
     const defaultSettings: UserSettings = {
+      lastModified: {},
       theme: 'light',
       language: 'en',
       currency: 'USD',
@@ -43,7 +44,6 @@ export const useUnifiedSettings = () => {
       defaultTransactionType: 'expense',
       expenseReminderDays: 3,
       version: '1.0',
-      lastModified: {},
       exportFormat: 'json',
       privacySettings: {}
     };

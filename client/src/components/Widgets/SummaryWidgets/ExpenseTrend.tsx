@@ -1,5 +1,4 @@
 import React from 'react';
-import { Card } from 'react-bootstrap';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Transaction } from '../../../common/types';
 import { useUnifiedSettings } from '../../../hooks/useUnifiedSettings';
@@ -10,12 +9,12 @@ interface ExpenseTrendProps {
   loading?: boolean;
   height?: number;
   showLegend?: boolean;
-  currency: string;
-  data: {
+  currency?: string;
+  data: Array<{
     date: string;
     income: number;
     expenses: number;
-  }[];
+  }>;
 }
 
 const ExpenseTrend: React.FC<ExpenseTrendProps> = ({
@@ -28,14 +27,27 @@ const ExpenseTrend: React.FC<ExpenseTrendProps> = ({
 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
+      const income = payload[0].value;
+      const expenses = Math.abs(payload[1].value);
+      const net = income - expenses;
+      const percentDiff = expenses > 0 ? ((income - expenses) / expenses) * 100 : 0;
+
       return (
-        <div className={`custom-tooltip theme-${settings?.theme ?? 'light'} p-2 rounded border`}>
-          <p className="mb-1">{label}</p>
-          <p className="mb-1 text-success">
-            Income: {formatCurrency(payload[0].value)}
+        <div className={`custom-tooltip theme-${settings?.theme ?? 'light'} p-3 rounded border shadow-sm bg-body`}>
+          <p className="mb-2 text-muted">{label}</p>
+          <p className="mb-1 text-success d-flex align-items-center">
+            <i className="bi bi-arrow-up-short me-1"></i>
+            Income: {formatCurrency(income)}
           </p>
-          <p className="mb-0 text-danger">
-            Expenses: {formatCurrency(Math.abs(payload[1].value))}
+          <p className="mb-1 text-danger d-flex align-items-center">
+            <i className="bi bi-arrow-down-short me-1"></i>
+            Expenses: {formatCurrency(expenses)}
+          </p>
+          <hr className="my-2" />
+          <p className={`mb-0 d-flex align-items-center ${net >= 0 ? 'text-success' : 'text-danger'}`}>
+            <i className={`bi bi-${net >= 0 ? 'plus' : 'dash'}-circle me-1`}></i>
+            Net: {formatCurrency(Math.abs(net))}
+            <small className="ms-2">({percentDiff.toFixed(1)}%)</small>
           </p>
         </div>
       );
@@ -50,21 +62,25 @@ const ExpenseTrend: React.FC<ExpenseTrendProps> = ({
           <LineChart
             data={data}
             margin={{
-              top: 5,
+              top: 10,
               right: 30,
               left: 20,
               bottom: 5,
             }}
           >
-            <CartesianGrid strokeDasharray="3 3" />
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--bs-border-color)" opacity={0.5} />
             <XAxis 
               dataKey="date"
-              stroke="var(--text-secondary)"
-              tick={{ fill: 'var(--text-secondary)' }}
+              stroke="var(--bs-body-color)"
+              tick={{ fill: 'var(--bs-body-color)' }}
+              tickLine={{ stroke: 'var(--bs-border-color)' }}
+              axisLine={{ stroke: 'var(--bs-border-color)' }}
             />
             <YAxis
-              stroke="var(--text-secondary)"
-              tick={{ fill: 'var(--text-secondary)' }}
+              stroke="var(--bs-body-color)"
+              tick={{ fill: 'var(--bs-body-color)' }}
+              tickLine={{ stroke: 'var(--bs-border-color)' }}
+              axisLine={{ stroke: 'var(--bs-border-color)' }}
               tickFormatter={(value) => formatCurrency(value)}
             />
             <Tooltip content={<CustomTooltip />} />
@@ -72,17 +88,24 @@ const ExpenseTrend: React.FC<ExpenseTrendProps> = ({
               <Legend 
                 verticalAlign="top" 
                 height={36}
-                wrapperStyle={{ color: 'var(--text-primary)' }}
+                wrapperStyle={{ paddingBottom: '20px' }}
+                formatter={(value, entry: any) => (
+                  <span style={{ color: 'var(--bs-body-color)', marginRight: '10px' }}>
+                    {value}
+                  </span>
+                )}
               />
             )}
             <Line
               type="monotone"
               dataKey="income"
-              stroke="#28a745"
+              stroke="#198754"
               name="Income"
               strokeWidth={2}
-              dot={{ fill: '#28a745', r: 4 }}
-              activeDot={{ r: 6 }}
+              dot={{ fill: '#198754', r: 4 }}
+              activeDot={{ r: 6, stroke: '#198754', strokeWidth: 2 }}
+              animationDuration={1000}
+              animationEasing="ease-in-out"
             />
             <Line
               type="monotone"
@@ -91,7 +114,9 @@ const ExpenseTrend: React.FC<ExpenseTrendProps> = ({
               name="Expenses"
               strokeWidth={2}
               dot={{ fill: '#dc3545', r: 4 }}
-              activeDot={{ r: 6 }}
+              activeDot={{ r: 6, stroke: '#dc3545', strokeWidth: 2 }}
+              animationDuration={1000}
+              animationEasing="ease-in-out"
             />
           </LineChart>
         </ResponsiveContainer>

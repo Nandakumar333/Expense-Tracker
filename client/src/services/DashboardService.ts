@@ -1,9 +1,8 @@
 import { TransactionService } from './TransactionService';
 import { AccountService } from './AccountService';
 import { CategoryService } from './CategoryService';
+import budgetService from './BudgetService';
 import { Transaction, Account, Category, Budget, DashboardSummary, WidgetData, TransactionForm, TransferForm } from '../common/types';
-import { AccountRepository } from '../data/repositories/AccountRepository';
-import { CategoryRepository } from '../data/repositories/CategoryRepository';
 
 export class DashboardService {
   private transactionService: TransactionService;
@@ -16,37 +15,13 @@ export class DashboardService {
     this.categoryService = new CategoryService();
   }
 
-  async getDashboardData() {
-    const defaultBudgets: Budget[] = [
-      {
-        id: 1,
-        categoryId: 1, // Food
-        amount: 500,
-        period: 'monthly',
-        startDate: new Date().toISOString().split('T')[0]
-      },
-      {
-        id: 2,
-        categoryId: 3, // Shopping
-        amount: 300,
-        period: 'monthly',
-        startDate: new Date().toISOString().split('T')[0]
-      },
-      {
-        id: 3,
-        categoryId: 5, // Bills
-        amount: 1000,
-        period: 'monthly',
-        startDate: new Date().toISOString().split('T')[0]
-      }
-    ];
-
+  async getDashboardData() {   
     try {
       const [transactions, accounts, categories, budgets] = await Promise.all([
         this.transactionService.getTransactions(),
         this.accountService.getAccounts(),
         this.categoryService.getCategories(),
-        Promise.resolve(defaultBudgets) // if budgets are not async yet
+        budgetService.getBudgets()
       ]);
 
       return {
@@ -136,13 +111,14 @@ export class DashboardService {
     const currentMonth = currentDate.getMonth();
     const currentYear = currentDate.getFullYear();
 
-    // Calculate monthly income vs expense trends
+    // Calculate monthly income vs expense trends with improved date handling
     const expenseTrends = Array.from({ length: 6 }, (_, i) => {
       const month = new Date(currentYear, currentMonth - i, 1);
+      const monthEnd = new Date(month.getFullYear(), month.getMonth() + 1, 0);
+      
       const monthTransactions = transactions.filter(t => {
         const transDate = new Date(t.date);
-        return transDate.getMonth() === month.getMonth() &&
-               transDate.getFullYear() === month.getFullYear();
+        return transDate >= month && transDate <= monthEnd;
       });
 
       const income = monthTransactions
@@ -156,14 +132,98 @@ export class DashboardService {
       const savings = income - expenses;
 
       return {
-        month: month.toLocaleString('default', { month: 'short' }),
+        date: month.toLocaleString('default', { month: 'short', year: '2-digit' }),
         income,
         expenses,
         savings
       };
     }).reverse();
 
-    // Account Summary calculations
+    // Enhanced category distribution with period comparison
+    const categoryDistribution = categories
+      .map(category => {
+        const currentMonthTransactions = transactions.filter(t => 
+          t.categoryId === category.id &&
+          t.type === 'expense' &&
+          new Date(t.date).getMonth() === currentMonth
+        );
+        
+        const previousMonthTransactions = transactions.filter(t => 
+          t.categoryId === category.id &&
+          t.type === 'expense' &&
+          new Date(t.date).getMonth() === currentMonth - 1
+        );
+        
+        const currentAmount = Math.abs(currentMonthTransactions.reduce((sum, t) => sum + t.amount, 0));
+        const previousAmount = Math.abs(previousMonthTransactions.reduce((sum, t) => sum + t.amount, 0));
+        const changePercent = previousAmount > 0 ? ((currentAmount - previousAmount) / previousAmount) * 100 : 0;
+        
+        return {
+          id: category.id,
+          name: category.name,
+          color: category.color,
+          amount: currentAmount,
+          count: currentMonthTransactions.length,
+          type: category.type,
+          percentage: 0, // Will be calculated after total is known
+          previousAmount,
+          changePercent
+        };
+      })
+      .filter(cat => cat.amount > 0 || cat.previousAmount > 0)
+      .sort((a, b) => b.amount - a.amount);
+
+    // Calculate percentages based on total expenses
+    const totalExpenses = categoryDistribution.reduce((sum, cat) => sum + cat.amount, 0);
+    categoryDistribution.forEach(cat => {
+      cat.percentage = (cat.amount / totalExpenses) * 100;
+    });
+
+    // Enhanced budget utilization tracking
+    const budgetSpending = budgets.map(budget => {
+      const spent = transactions
+        .filter(t => 
+          t.categoryId === budget.categoryId && 
+          t.type === 'expense' &&
+          new Date(t.date).getMonth() === currentMonth
+        )
+        .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+
+      const category = categories.find(c => c.id === budget.categoryId);
+      const percentage = (spent / budget.amount) * 100;
+      const status = percentage >= 100 ? 'over' : percentage >= 80 ? 'warning' : 'good';
+      
+      return {
+        categoryId: budget.categoryId,
+        category: category?.name || 'Unknown',
+        spent,
+        total: budget.amount,
+        percentage,
+        color: category?.color,
+        status,
+        remaining: budget.amount - spent,
+        projectedOverspend: this.calculateProjectedOverspend(spent, budget.amount, currentDate.getDate())
+      };
+    });
+
+    // Enhanced alerts generation
+    const overBudgetAlerts = budgetSpending
+      .filter(budget => budget.percentage > 80)
+      .map(budget => ({
+        category: budget.category,
+        currentSpending: budget.spent,
+        amount: budget.total,
+        message: `${budget.category} spending is at ${budget.percentage.toFixed(1)}% of budget`,
+        severity: budget.percentage > 100 ? 'high' as const : 
+                 budget.percentage > 90 ? 'medium' as const : 
+                 'low' as const,
+        projectedOverspend: budget.projectedOverspend
+      }));
+
+    // Enhanced upcoming bills detection
+    const upcomingBills = this.getUpcomingBills(transactions, 7); // Next 7 days
+
+    // Calculate account summary with trends
     const accountSummary = accounts.map(account => {
       const monthlyIncome = transactions
         .filter(t => t.accountId === account.id && 
@@ -187,95 +247,62 @@ export class DashboardService {
       };
     });
 
-    // Category Distribution calculations
-    const categoryDistribution = categories
-      .map(category => {
-        const transactions_category = transactions.filter(t => 
-          t.categoryId === category.id &&
-          t.type === 'expense' &&
-          new Date(t.date).getMonth() === currentMonth
-        );
-        
-        const amount = Math.abs(transactions_category.reduce((sum, t) => sum + t.amount, 0));
-        const count = transactions_category.length;
-        
-        return {
-          id: category.id,
-          name: category.name,
-          color: category.color,
-          amount,
-          count,
-          type: category.type
-        };
-      })
-      .filter(cat => cat.amount > 0)
-      .sort((a, b) => b.amount - a.amount);
+    const totals = {
+      income: accountSummary.reduce((sum, acc) => sum + acc.monthlyIncome, 0),
+      expenses: accountSummary.reduce((sum, acc) => sum + acc.monthlyExpense, 0),
+      balance: accounts.reduce((sum, acc) => sum + acc.balance, 0)
+    };
 
-    // Calculate category expenses
-    const totalExpenses = transactions
-      .filter(t => t.type === 'expense' && new Date(t.date).getMonth() === currentMonth)
-      .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+    return {
+      expenseTrends,
+      yearlyTrends: this.calculateYearlyTrends(transactions),
+      budgetData: budgetSpending.map(b => ({
+        categoryId: b.categoryId,
+        category: b.category,
+        budgeted: b.total,
+        spent: b.spent,
+        percentageUsed: b.percentage,
+        color: b.color
+      })),
+      overBudgetAlerts,
+      categoryExpenses: categoryDistribution.map(({ id, amount, percentage }) => ({
+        categoryId: id,
+        amount,
+        percentage
+      })),
+      monthlyTrends: expenseTrends.map(t => ({
+        month: t.date,
+        income: t.income,
+        expense: t.expenses,
+        savings: t.savings
+      })),
+      savingsTarget: this.calculateSavingsTarget(totals.income),
+      upcomingBills,
+      alerts: this.generateInsightAlerts(categoryDistribution, budgetSpending, totals),
+      budgetSpending,
+      accountSummary,
+      categoryDistribution,
+      totals
+    };
+  }
 
-    const categoryExpenses = categories.map(category => {
-      const expenses = transactions.filter(t => 
-        t.categoryId === category.id && 
-        t.type === 'expense' &&
-        new Date(t.date).getMonth() === currentMonth
-      );
-      const amount = Math.abs(expenses.reduce((sum, t) => sum + t.amount, 0));
+  private calculateProjectedOverspend(spent: number, budget: number, currentDay: number): number {
+    const dailyRate = spent / currentDay;
+    const projectedMonthlySpend = dailyRate * 30;
+    return projectedMonthlySpend > budget ? projectedMonthlySpend - budget : 0;
+  }
+
+  private calculateYearlyTrends(transactions: Transaction[]): any[] {
+    const currentDate = new Date();
+    const currentYear = currentDate.getFullYear();
+    
+    return Array.from({ length: 12 }, (_, i) => {
+      const month = new Date(currentYear, i, 1);
+      const monthEnd = new Date(currentYear, i + 1, 0);
       
-      return {
-        categoryId: category.id,
-        amount: amount,
-        percentage: totalExpenses ? (amount / totalExpenses) * 100 : 0
-      };
-    });
-
-    // Calculate monthly expenses per category
-    const monthlyExpenses = transactions.reduce((acc, transaction) => {
-      if (
-        transaction.type === 'expense' &&
-        new Date(transaction.date).getMonth() === currentMonth &&
-        new Date(transaction.date).getFullYear() === currentYear
-      ) {
-        acc[transaction.categoryId] = (acc[transaction.categoryId] || 0) + Math.abs(transaction.amount);
-      }
-      return acc;
-    }, {} as { [key: number]: number });
-
-    // Format budget data
-    const budgetSpending = budgets.map(budget => {
-      const spent = monthlyExpenses[budget.categoryId] || 0;
-      const category = categories.find(c => c.id === budget.categoryId);
-      return {
-        categoryId: budget.categoryId,
-        category: category?.name || 'Unknown',
-        amount: spent,
-        spent: spent,
-        total: budget.amount,
-        percentage: (spent / budget.amount) * 100,
-        color: category?.color || '#000000',
-        status: spent > budget.amount ? 'over' : spent >= budget.amount * 0.8 ? 'warning' : 'good'
-      };
-    });
-
-    const overBudgetAlerts = budgetSpending
-      .filter(budget => budget.percentage > 80)
-      .map(budget => ({
-        category: budget.category,
-        currentSpending: budget.spent,
-        amount: budget.total,
-        message: `${budget.category} spending is at ${budget.percentage.toFixed(1)}% of budget`,
-        severity: budget.percentage > 90 ? 'high' as const : 'medium' as const
-      }));
-
-    // Calculate monthly savings trend
-    const monthlyTrends = Array.from({ length: 6 }, (_, i) => {
-      const month = new Date(currentYear, currentMonth - i, 1);
       const monthTransactions = transactions.filter(t => {
-        const transDate = new Date(t.date);
-        return transDate.getMonth() === month.getMonth() &&
-               transDate.getFullYear() === month.getFullYear();
+        const date = new Date(t.date);
+        return date >= month && date <= monthEnd;
       });
 
       const income = monthTransactions
@@ -287,41 +314,78 @@ export class DashboardService {
         .reduce((sum, t) => sum + Math.abs(t.amount), 0);
 
       return {
-        month: month.toISOString(),
+        month: month.toLocaleString('default', { month: 'short' }),
         income,
-        expense: expenses
+        expenses,
+        savings: income - expenses
       };
-    }).reverse();
+    });
+  }
 
-    return {
-      categoryExpenses,
-      alerts: overBudgetAlerts,
-      budgetSpending,
-      upcomingBills: transactions
-        .filter(t => t.type === 'expense' &&
-          new Date(t.date) > new Date() &&
-          new Date(t.date) < new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-        )
-        .map(t => ({
-          id: t.id,
-          categoryId: t.categoryId,
-          description: t.description,
-          amount: Math.abs(t.amount),
-          dueDate: t.date
-        })),
-      monthlyTrends,
-      savingsTarget: 5000, // You can make this configurable
-      budgetData: [],
-      overBudgetAlerts: [],
-      accountSummary,
-      categoryDistribution,
-      totals: {
-        income: accountSummary.reduce((sum, acc) => sum + acc.monthlyIncome, 0),
-        expenses: accountSummary.reduce((sum, acc) => sum + acc.monthlyExpense, 0),
-        balance: accounts.reduce((sum, acc) => sum + acc.balance, 0)
-      },
-      expenseTrends,
-      yearlyTrends: expenseTrends // Use the same data for yearly view for now
-    };
+  private calculateSavingsTarget(monthlyIncome: number): number {
+    // Default target is 20% of monthly income
+    return monthlyIncome * 0.2;
+  }
+
+  private getUpcomingBills(transactions: Transaction[], days: number): any[] {
+    const today = new Date();
+    const futureDate = new Date(today);
+    futureDate.setDate(today.getDate() + days);
+
+    return transactions
+      .filter(t => 
+        t.type === 'expense' &&
+        new Date(t.date) > today &&
+        new Date(t.date) <= futureDate
+      )
+      .map(t => ({
+        id: t.id,
+        categoryId: t.categoryId,
+        description: t.description,
+        amount: Math.abs(t.amount),
+        dueDate: t.date
+      }))
+      .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+  }
+
+  private generateInsightAlerts(
+    categoryDistribution: any[],
+    budgetSpending: any[],
+    totals: { income: number; expenses: number; balance: number }
+  ): any[] {
+    const alerts = [];
+
+    // Check for significant category increases
+    categoryDistribution
+      .filter(cat => cat.changePercent > 50)
+      .forEach(cat => {
+        alerts.push({
+          category: cat.name,
+          message: `${cat.name} spending increased by ${cat.changePercent.toFixed(1)}% from last month`,
+          severity: cat.changePercent > 100 ? 'high' : 'medium'
+        });
+      });
+
+    // Check overall spending vs income
+    if (totals.expenses > totals.income) {
+      alerts.push({
+        category: 'Overall',
+        message: `Monthly expenses exceed income by ${(totals.expenses - totals.income).toLocaleString()}`,
+        severity: 'high'
+      });
+    }
+
+    // Add budget alerts
+    budgetSpending
+      .filter(b => b.projectedOverspend > 0)
+      .forEach(b => {
+        alerts.push({
+          category: b.category,
+          message: `Projected to exceed ${b.category} budget by ${b.projectedOverspend.toLocaleString()}`,
+          severity: 'medium'
+        });
+      });
+
+    return alerts;
   }
 }

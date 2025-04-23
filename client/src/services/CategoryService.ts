@@ -1,4 +1,4 @@
-import { Category, CategoryFormData } from '../common/types';
+import type { Category, CategoryFormData } from '../common/types';
 
 export class CategoryService {
   private readonly STORAGE_KEY = 'categories';

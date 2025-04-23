@@ -25,16 +25,16 @@ const CategoryChart: React.FC<CategoryChartProps> = ({
   showLegend = true,
   height = 300
 }) => {
-  const { settings, formatCurrency, formatNumber } = useUnifiedSettings();
+  const { settings, formatCurrency } = useUnifiedSettings();
 
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
       const item = payload[0].payload;
       return (
-        <div className={`custom-tooltip theme-${settings?.theme ?? 'light'}`}>
-          <p className="category">{item.name}</p>
-          <p className="amount">{formatCurrency(item.amount)}</p>
-          <p className="percentage">{item.percentage.toFixed(1)}%</p>
+        <div className={`custom-tooltip theme-${settings?.theme ?? 'light'} p-3 rounded border shadow-sm bg-body`}>
+          <p className="fw-medium mb-1">{item.name}</p>
+          <p className="mb-1">{formatCurrency(item.amount)}</p>
+          <p className="text-muted mb-0">{item.percentage.toFixed(1)}% of total</p>
         </div>
       );
     }
@@ -50,23 +50,25 @@ const CategoryChart: React.FC<CategoryChartProps> = ({
     percent,
     name
   }: any) => {
+    if (percent < 0.05) return null;
+    
     const RADIAN = Math.PI / 180;
     const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
     const x = cx + radius * Math.cos(-midAngle * RADIAN);
     const y = cy + radius * Math.sin(-midAngle * RADIAN);
-
-    return percent > 0.05 ? (
+    
+    return (
       <text
         x={x}
         y={y}
-        fill="white"
+        fill={settings?.theme === 'dark' ? '#fff' : '#495057'}
         textAnchor={x > cx ? 'start' : 'end'}
         dominantBaseline="central"
-        className={`chart-label theme-${settings?.theme ?? 'light'}`}
+        fontSize="12"
       >
-        {`${name} (${(percent * 100).toFixed(0)}%)`}
+        {name} ({(percent * 100).toFixed(0)}%)
       </text>
-    ) : null;
+    );
   };
 
   return (
@@ -84,26 +86,41 @@ const CategoryChart: React.FC<CategoryChartProps> = ({
                 labelLine={false}
                 label={renderCustomizedLabel}
                 outerRadius={height ? height * 0.4 : 120}
+                animationDuration={750}
+                animationEasing="ease-in-out"
               >
                 {data.map((entry, index) => (
-                  <Cell key={index} fill={entry.color} />
+                  <Cell 
+                    key={index} 
+                    fill={entry.color} 
+                    stroke={settings?.theme === 'dark' ? '#2b3035' : '#fff'}
+                    strokeWidth={2}
+                  />
                 ))}
               </Pie>
               <Tooltip content={<CustomTooltip />} />
               {showLegend && (
                 <Legend
+                  layout="vertical"
+                  align="right"
+                  verticalAlign="middle"
                   formatter={(value, entry: any) => (
                     <span className={`legend-item theme-${settings?.theme ?? 'light'}`}>
                       {value} ({formatCurrency(entry.payload.amount)})
                     </span>
                   )}
+                  wrapperStyle={{
+                    paddingLeft: '20px',
+                    maxHeight: '100%',
+                    overflowY: 'auto'
+                  }}
                 />
               )}
             </PieChart>
           </ResponsiveContainer>
         ) : (
           <div className="text-center text-muted py-5">
-            No data available
+            No expense data available
           </div>
         )}
       </div>

@@ -27,12 +27,14 @@ const RecentTransactionsWidget: React.FC<RecentTransactionsWidgetProps> = ({
   showFilters,
   onFilterChange,
   onToggleFilters,
-  onAddTransaction
+  onAddTransaction,
+  limit = 5,
+  compact = false
 }) => {
   const { settings, formatCurrency, formatDate } = useUnifiedSettings();
 
   const getCategoryName = (categoryId: number) => {
-    return categories.find(c => c.id === categoryId)?.name || 'Uncategorized';
+    return categories.find(c => c.id === categoryId)?.name || 'UnCategorized';
   };
 
   const getAccountName = (accountId: number) => {
@@ -52,44 +54,61 @@ const RecentTransactionsWidget: React.FC<RecentTransactionsWidgetProps> = ({
     }
   };
 
+  const getTransactionIcon = (type: string) => {
+    switch (type) {
+      case 'income':
+        return 'bi-arrow-up-circle-fill';
+      case 'expense':
+        return 'bi-arrow-down-circle-fill';
+      case 'transfer':
+        return 'bi-arrow-left-right';
+      default:
+        return 'bi-dash-circle';
+    }
+  };
+
+  const limitedTransactions = transactions.slice(0, limit);
+
   return (
     <BaseWidget title="Recent Transactions">
       <div className={`recent-transactions theme-${settings?.theme ?? 'light'}`}>
-        <div className="d-flex justify-content-between mb-3">
-          <Button
-            variant="outline-secondary"
-            size="sm"
-            onClick={onToggleFilters}
-          >
-            <i className="bi bi-funnel me-1"></i>
-            {showFilters ? 'Hide Filters' : 'Show Filters'}
-          </Button>
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={onAddTransaction}
-          >
-            <i className="bi bi-plus-lg me-1"></i>
-            Add Transaction
-          </Button>
-        </div>
+        {!compact && (
+          <div className="d-flex justify-content-between mb-3">
+            <Button
+              variant="outline-secondary"
+              size="sm"
+              onClick={onToggleFilters}
+            >
+              <i className="bi bi-funnel me-1"></i>
+              {showFilters ? 'Hide Filters' : 'Show Filters'}
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={onAddTransaction}
+            >
+              <i className="bi bi-plus-lg me-1"></i>
+              Add Transaction
+            </Button>
+          </div>
+        )}
 
         <div className="table-responsive">
-          <Table hover className="mb-0">
+          <Table hover className="mb-0 align-middle">
             <thead>
               <tr>
                 <th>Date</th>
                 <th>Description</th>
                 <th>Category</th>
-                <th>Account</th>
+                {!compact && <th>Account</th>}
                 <th className="text-end">Amount</th>
-                <th>Type</th>
+                <th style={{ width: '100px' }}>Type</th>
               </tr>
             </thead>
             <tbody>
-              {transactions.length > 0 ? (
-                transactions.map(transaction => (
-                  <tr key={transaction.id}>
+              {limitedTransactions.length > 0 ? (
+                limitedTransactions.map(transaction => (
+                  <tr key={transaction.id} className="transaction-row">
                     <td>{formatDate(transaction.date, settings?.dateFormat)}</td>
                     <td>
                       <PrivacyFilter type="note" showToggle>
@@ -97,24 +116,28 @@ const RecentTransactionsWidget: React.FC<RecentTransactionsWidgetProps> = ({
                       </PrivacyFilter>
                     </td>
                     <td>{getCategoryName(transaction.categoryId)}</td>
-                    <td>{getAccountName(transaction.accountId)}</td>
+                    {!compact && <td>{getAccountName(transaction.accountId)}</td>}
                     <td className="text-end">
                       <PrivacyFilter type="amount" showToggle>
                         <span className={transaction.type === 'expense' ? 'text-danger' : 'text-success'}>
-                          {formatCurrency(Math.abs(transaction.amount))}
+                          {transaction.type === 'expense' ? '-' : '+'}{formatCurrency(Math.abs(transaction.amount))}
                         </span>
                       </PrivacyFilter>
                     </td>
                     <td>
-                      <Badge bg={getTransactionTypeVariant(transaction.type)}>
-                        {transaction.type}
+                      <Badge 
+                        bg={getTransactionTypeVariant(transaction.type)}
+                        className="d-flex align-items-center gap-1 w-100 justify-content-center py-2"
+                      >
+                        <i className={`bi ${getTransactionIcon(transaction.type)}`}></i>
+                        <span className="text-capitalize">{transaction.type}</span>
                       </Badge>
                     </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={6} className="text-center text-muted py-4">
+                  <td colSpan={compact ? 5 : 6} className="text-center text-muted py-4">
                     No transactions found
                   </td>
                 </tr>

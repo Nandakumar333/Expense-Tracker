@@ -15,7 +15,7 @@ import BudgetManager from '../../components/Budget/BudgetManager';
 import BudgetSpending from '../../components/Widgets/BudgetSpending/BudgetSpending';
 import BudgetUtilization from '../../components/Widgets/SummaryWidgets/BudgetUtilization';
 import { DashboardService } from '../../services/DashboardService';
-import { getBudgets } from '../../services/BudgetService';
+import { budgetService } from '../../services/BudgetService';
 import { Container, Row, Col, Card, Button, Table, Badge, Form, Alert, Spinner, Toast } from 'react-bootstrap';
 import RecentTransactionsWidget from '../../components/Widgets/RecentTransactions/RecentTransactionsWidget';
 import { TransactionService } from '../../services/TransactionService';
@@ -72,7 +72,25 @@ const Dashboard: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'danger' | 'warning' } | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
-  const [dashboardData, setDashboardData] = useState<WidgetData | null>(null);
+  const [dashboardData, setDashboardData] = useState<WidgetData>({
+    expenseTrends: [],
+    yearlyTrends: [],
+    budgetData: [],
+    overBudgetAlerts: [],
+    categoryExpenses: [],
+    monthlyTrends: [],
+    savingsTarget: 0,
+    upcomingBills: [],
+    alerts: [],
+    budgetSpending: [],
+    accountSummary: [],
+    categoryDistribution: [],
+    totals: {
+      income: 0,
+      expenses: 0,
+      balance: 0
+    }
+  });
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const dashboardService = new DashboardService();
   useSettingsUtils();
@@ -105,28 +123,41 @@ const Dashboard: React.FC = () => {
   useAutoRefresh({ onRefresh: fetchDashboardData });
 
   useEffect(() => {
-    const loadData = async () => {
-      setIsLoading(true);
+    const fetchDashboardData = async () => {
       try {
+        setIsLoading(true);
         const data = await dashboardService.getDashboardData();
+        const calculatedSummary = dashboardService.calculateSummary(
+          data.transactions,
+          data.accounts
+        );
+        const widgetData = dashboardService.calculateWidgetData(
+          data.transactions,
+          data.categories,
+          data.accounts,
+          data.budgets
+        );
+
+        setSummary(calculatedSummary);
+        setDashboardData(widgetData);
+        setTransactions(data.transactions);
         setAccounts(data.accounts);
         setCategories(data.categories);
-        setTransactions(data.transactions);
         setBudgets(data.budgets);
       } catch (error) {
-        console.error('Error loading dashboard data:', error);
+        console.error('Error fetching dashboard data:', error);
         handleError('Error loading dashboard data');
       } finally {
         setIsLoading(false);
       }
     };
 
-    loadData();
+    fetchDashboardData();
   }, []);
 
   useEffect(() => {
     const fetchBudgets = async () => {
-      const fetchedBudgets = await getBudgets();
+      const fetchedBudgets = await budgetService.getBudgets();
       setBudgets(fetchedBudgets);
     };
     fetchBudgets();

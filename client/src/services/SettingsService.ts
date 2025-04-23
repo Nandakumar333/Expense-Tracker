@@ -163,7 +163,7 @@ updateSettings(settings: Partial<UserSettings>, silent: boolean = false): void {
       privacySettings: {},
       browserNotifications: true,
       version: '1.0.0',
-      lastModified: new Date().toISOString(),
+      lastModified: new Date(),
       currency: 'USD',
       language: 'en-US',
       theme: 'light',

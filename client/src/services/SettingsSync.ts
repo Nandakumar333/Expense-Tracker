@@ -315,8 +315,8 @@ export class SettingsSync {
     const mergedSettings = { ...localSettings };
     
     Object.entries(remoteSettings).forEach(([key, value]) => {
-      const remoteTimestamp = remoteSettings.lastModified?.[key];
-      const localTimestamp = localSettings.lastModified?.[key];
+      const remoteTimestamp = remoteSettings.lastModified;
+      const localTimestamp = localSettings.lastModified;
       
       if (remoteTimestamp && (!localTimestamp || remoteTimestamp > localTimestamp)) {
         const typedKey = key as keyof UserSettings;

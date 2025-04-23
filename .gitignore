@@ -36,3 +36,15 @@ logs/
 tmp/
 temp/
 
+# .NET
+bin/
+obj/
+*.user
+*.suo
+*.cache
+*.dll
+*.exe
+*.pdb
+TestResults/
+[Tt]est[Rr]esult*/
+.vs/

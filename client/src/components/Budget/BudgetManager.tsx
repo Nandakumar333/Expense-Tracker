@@ -1,94 +1,150 @@
-import React, { useState } from 'react';
-import { Modal, Form, Button } from 'react-bootstrap';
+import React, { useState, useEffect, memo } from 'react';
+import { Modal, Form, Button, Alert } from 'react-bootstrap';
 import { Budget, Category } from '../../common/types';
 import { useUnifiedSettings } from '../../hooks/useUnifiedSettings';
+
+type BudgetPeriod = 'monthly' | 'yearly';
+
+interface BudgetFormData {
+  categoryId: string;
+  amount: string;
+  period: BudgetPeriod;
+  startDate: string;
+  description: string;
+  rollover: boolean;
+}
 
 interface BudgetManagerProps {
   categories: Category[];
   budgets: Budget[];
-  currency: string;
   onSaveBudget: (budget: Omit<Budget, 'id'>) => void;
-  onDeleteBudget: (id: number) => void;
   onUpdateBudget: (budget: Budget) => void;
   onClose: () => void;
+  onDeleteBudget: (budgetId: number) => void;
+  selectedBudget?: Budget;
+  currency: string;
 }
 
-const BudgetManager: React.FC<BudgetManagerProps> = ({
+const BudgetManager: React.FC<BudgetManagerProps> = memo(({
   categories,
   budgets,
   onSaveBudget,
-  onDeleteBudget,
   onUpdateBudget,
-  onClose
+  onClose,
+  selectedBudget,
+  currency
 }) => {
-  const { settings, formatCurrency } = useUnifiedSettings();
-  const [formData, setFormData] = useState({
-    categoryId: '',
-    amount: '',
-    period: 'monthly'
-  });
+  const { settings } = useUnifiedSettings();
+  const [formData, setFormData] = useState<BudgetFormData>(() => ({
+    categoryId: selectedBudget?.categoryId.toString() || '',
+    amount: selectedBudget?.amount.toString() || '',
+    period: selectedBudget?.period || 'monthly',
+    startDate: selectedBudget?.startDate || new Date().toISOString().split('T')[0],
+    description: selectedBudget?.description || '',
+    rollover: selectedBudget?.rollover || false
+  }));
+  const [error, setError] = useState<string>('');
+
+  useEffect(() => {
+    // Reset form when selected budget changes
+    setFormData({
+      categoryId: selectedBudget?.categoryId.toString() || '',
+      amount: selectedBudget?.amount.toString() || '',
+      period: selectedBudget?.period || 'monthly',
+      startDate: selectedBudget?.startDate || new Date().toISOString().split('T')[0],
+      description: selectedBudget?.description || '',
+      rollover: selectedBudget?.rollover || false
+    });
+  }, [selectedBudget]);
+
+  // Filter out categories that already have budgets unless it's the selected budget's category
+  const availableCategories = categories.filter(category => 
+    category.type === 'expense' && 
+    (!budgets.some(b => b.categoryId === category.id) || category.id === selectedBudget?.categoryId)
+  );
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSaveBudget({
+    setError('');
+
+    if (!formData.categoryId || !formData.amount) {
+      setError('Please fill in all required fields');
+      return;
+    }
+
+    const amount = Number(formData.amount);
+    if (amount <= 0) {
+      setError('Amount must be greater than 0');
+      return;
+    }
+
+    const budgetData = {
+      ...formData,
       categoryId: Number(formData.categoryId),
-      amount: Number(formData.amount),
-      period: formData.period as 'monthly' | 'yearly',
-      startDate: ''
-    });
-    setFormData({ categoryId: '', amount: '', period: 'monthly' });
+      amount: amount,
+      period: formData.period
+    };
+
+    if (selectedBudget) {
+      onUpdateBudget({ ...budgetData, id: selectedBudget.id });
+    } else {
+      onSaveBudget(budgetData);
+    }
+    onClose();
   };
 
-  const handleEdit = (budget: Budget) => {
-    setFormData({
-      categoryId: budget.categoryId.toString(),
-      amount: budget.amount.toString(),
-      period: budget.period
-    });
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value, type } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value
+    }));
   };
 
   return (
-    <Modal show onHide={onClose} centered className={`theme-${settings?.theme ?? 'light'}`}>
+    <Modal show={true} onHide={onClose} centered className={`theme-${settings?.theme ?? 'light'}`}>
       <Modal.Header closeButton>
-        <Modal.Title>Budget Manager</Modal.Title>
+        <Modal.Title>{selectedBudget ? 'Edit Budget' : 'Create New Budget'}</Modal.Title>
       </Modal.Header>
       <Modal.Body>
+        {error && <Alert variant="danger">{error}</Alert>}
         <Form onSubmit={handleSubmit}>
           <Form.Group className="mb-3">
             <Form.Label>Category</Form.Label>
             <Form.Select
+              name="categoryId"
               value={formData.categoryId}
-              onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
+              onChange={handleChange}
               required
             >
-              <option value="">Select Category</option>
-              {categories
-                .filter(category => category.type === 'expense')
-                .map(category => (
-                  <option key={category.id} value={category.id}>
-                    {category.name}
-                  </option>
-                ))}
+              <option value="">Select a category</option>
+              {availableCategories.map(category => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
+              ))}
             </Form.Select>
           </Form.Group>
 
           <Form.Group className="mb-3">
-            <Form.Label>Budget Amount ({settings?.currency})</Form.Label>
+            <Form.Label>Amount ({currency})</Form.Label>
             <Form.Control
               type="number"
+              name="amount"
+              value={formData.amount}
+              onChange={handleChange}
+              required
               min="0"
               step="0.01"
-              value={formData.amount}
-              onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-              required
             />
           </Form.Group>
 
           <Form.Group className="mb-3">
             <Form.Label>Period</Form.Label>
             <Form.Select
+              name="period"
               value={formData.period}
-              onChange={(e) => setFormData({ ...formData, period: e.target.value })}
+              onChange={handleChange}
               required
             >
               <option value="monthly">Monthly</option>
@@ -96,53 +152,50 @@ const BudgetManager: React.FC<BudgetManagerProps> = ({
             </Form.Select>
           </Form.Group>
 
-          <Button variant="primary" type="submit">
-            Add Budget
-          </Button>
+          <Form.Group className="mb-3">
+            <Form.Label>Start Date</Form.Label>
+            <Form.Control
+              type="date"
+              name="startDate"
+              value={formData.startDate}
+              onChange={handleChange}
+              required
+            />
+          </Form.Group>
+
+          <Form.Group className="mb-3">
+            <Form.Label>Description (Optional)</Form.Label>
+            <Form.Control
+              as="textarea"
+              name="description"
+              value={formData.description}
+              onChange={handleChange}
+              rows={2}
+            />
+          </Form.Group>
+
+          <Form.Group className="mb-3">
+            <Form.Check
+              type="checkbox"
+              name="rollover"
+              checked={formData.rollover}
+              onChange={handleChange}
+              label="Roll over unused budget to next period"
+            />
+          </Form.Group>
+
+          <div className="d-flex justify-content-end gap-2">
+            <Button variant="secondary" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button variant="primary" type="submit">
+              {selectedBudget ? 'Update' : 'Create'} Budget
+            </Button>
+          </div>
         </Form>
-
-        <hr />
-
-        <h6>Current Budgets</h6>
-        <div className="budget-list">
-          {budgets.map(budget => (
-            <div key={budget.id} className="budget-item p-3 border rounded mb-2">
-              <div className="d-flex justify-content-between align-items-center">
-                <div>
-                  <strong>{categories.find(c => c.id === budget.categoryId)?.name}</strong>
-                  <div className="text-muted small">
-                    {formatCurrency(budget.amount)} per {budget.period}
-                  </div>
-                </div>
-                <div>
-                  <Button
-                    variant="outline-primary"
-                    size="sm"
-                    className="me-2"
-                    onClick={() => handleEdit(budget)}
-                  >
-                    <i className="bi bi-pencil"></i>
-                  </Button>
-                  <Button
-                    variant="outline-danger"
-                    size="sm"
-                    onClick={() => onDeleteBudget(budget.id)}
-                  >
-                    <i className="bi bi-trash"></i>
-                  </Button>
-                </div>
-              </div>
-            </div>
-          ))}
-          {budgets.length === 0 && (
-            <div className="text-muted text-center py-3">
-              No budgets set yet
-            </div>
-          )}
-        </div>
       </Modal.Body>
     </Modal>
   );
-};
+});
 
 export default BudgetManager;

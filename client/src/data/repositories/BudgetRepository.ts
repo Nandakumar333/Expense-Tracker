@@ -42,28 +42,36 @@ export class BudgetRepository extends BaseRepository<Budget> {
         categoryId: 1, // Food
         amount: 500,
         period: 'monthly',
-        startDate: new Date().toISOString().split('T')[0]
+        startDate: new Date().toISOString().split('T')[0],
+        rollover: false,
+        description: 'Food Budget'
       },
       {
         id: 2,
         categoryId: 3, // Shopping
         amount: 300,
         period: 'monthly',
-        startDate: new Date().toISOString().split('T')[0]
+        startDate: new Date().toISOString().split('T')[0],
+        rollover: false,
+        description: 'Shopping Budget'
       },
       {
         id: 3,
         categoryId: 5, // Bills
         amount: 1000,
         period: 'monthly',
-        startDate: new Date().toISOString().split('T')[0]
+        startDate: new Date().toISOString().split('T')[0],
+        rollover: false,
+        description: 'Bills Budget'
       },
       {
         id: 4,
         categoryId: 6, // Entertainment
         amount: 200,
         period: 'monthly',
-        startDate: new Date().toISOString().split('T')[0]
+        startDate: new Date().toISOString().split('T')[0],
+        rollover: false,
+        description: 'Entertainment Budget'
       }
     ];
 

@@ -19,9 +19,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Category, CategoryFormData } from '../../common/types';
 import { CategoryService } from '../../services/CategoryService';
-import CategoryForm from '../../components/Categories/CategoryForm';
 import CategoryFilter from '../../components/Categories/CategoryFilter';
-import CategoryListItem from '../../components/Widgets/Categories/CategoryListItem';
 import CategoryTreeItem from '../../components/Categories/CategoryTreeItem';
 import CategoryModal from '../../components/Categories/CategoryModal';
 
